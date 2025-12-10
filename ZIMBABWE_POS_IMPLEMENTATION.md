@@ -97,3 +97,4 @@
 1. Generate X-Report: `POST /api/pos/day-end-reports/` with `report_type: 'x_report'`
 2. Generate Z-Report: `POST /api/pos/day-end-reports/` with `report_type: 'z_report'`
 
+

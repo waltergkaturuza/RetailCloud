@@ -105,3 +105,4 @@ class SalesConsumer(AsyncWebsocketConsumer):
             'data': message
         }))
 
+

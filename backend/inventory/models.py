@@ -155,7 +155,7 @@ class StockMovement(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='stock_movements')
     variant = models.ForeignKey(ProductVariant, on_delete=models.SET_NULL, null=True, blank=True)
     movement_type = models.CharField(
-        max_length=20,
+        max_length=30,
         choices=[
             ('in', 'Stock In'),
             ('out', 'Stock Out'),
@@ -164,6 +164,10 @@ class StockMovement(models.Model):
             ('transfer_out', 'Transfer Out'),
             ('sale', 'Sale'),
             ('return', 'Return'),
+            ('return_restored', 'Return Restored to Inventory'),
+            ('return_disposed', 'Return Disposed (Damaged)'),
+            ('return_to_supplier', 'Return to Supplier'),
+            ('purchase_return_disposed', 'Purchase Return Disposed (Cannot Return)'),
         ]
     )
     quantity = models.IntegerField()

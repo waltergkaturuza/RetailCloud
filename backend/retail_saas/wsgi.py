@@ -9,3 +9,4 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'retail_saas.settings')
 
 application = get_wsgi_application()
 
+

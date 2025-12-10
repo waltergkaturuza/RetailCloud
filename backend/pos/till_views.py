@@ -15,6 +15,7 @@ from .till_serializers import (
     SuspendedSaleSerializer, DayEndReportSerializer
 )
 from .models import Sale, SaleItem, PaymentSplit
+from core.utils import get_tenant_from_request
 
 
 class TillFloatViewSet(viewsets.ModelViewSet):
@@ -23,9 +24,12 @@ class TillFloatViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Filter by tenant."""
+        tenant = get_tenant_from_request(self.request)
         queryset = TillFloat.objects.all()
-        if hasattr(self.request, 'tenant') and self.request.tenant:
-            queryset = queryset.filter(tenant=self.request.tenant)
+        if tenant:
+            queryset = queryset.filter(tenant=tenant)
+        else:
+            queryset = queryset.none()
         
         # Filter by branch if provided
         branch_id = self.request.query_params.get('branch')
@@ -103,9 +107,12 @@ class CashTransactionViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Filter by tenant."""
+        tenant = get_tenant_from_request(self.request)
         queryset = CashTransaction.objects.all()
-        if hasattr(self.request, 'tenant') and self.request.tenant:
-            queryset = queryset.filter(tenant=self.request.tenant)
+        if tenant:
+            queryset = queryset.filter(tenant=tenant)
+        else:
+            queryset = queryset.none()
         
         # Filter by branch if provided
         branch_id = self.request.query_params.get('branch')
@@ -155,9 +162,12 @@ class SuspendedSaleViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Filter by tenant."""
+        tenant = get_tenant_from_request(self.request)
         queryset = SuspendedSale.objects.all()
-        if hasattr(self.request, 'tenant') and self.request.tenant:
-            queryset = queryset.filter(tenant=self.request.tenant)
+        if tenant:
+            queryset = queryset.filter(tenant=tenant)
+        else:
+            queryset = queryset.none()
         
         # Filter by status
         status_filter = self.request.query_params.get('status', 'suspended')
@@ -167,8 +177,12 @@ class SuspendedSaleViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         """Create suspended sale."""
+        tenant = get_tenant_from_request(self.request)
+        if not tenant:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError("Tenant context not found.")
         serializer.save(
-            tenant=self.request.tenant,
+            tenant=tenant,
             cashier=self.request.user
         )
     
@@ -196,6 +210,13 @@ class DayEndReportView(APIView):
     
     def post(self, request):
         """Generate report."""
+        tenant = get_tenant_from_request(request)
+        if not tenant:
+            return Response(
+                {'error': 'Tenant context not found.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
         report_type = request.data.get('report_type', 'x_report')  # x_report or z_report
         branch_id = request.data.get('branch_id')
         till_float_id = request.data.get('till_float_id')
@@ -213,7 +234,7 @@ class DayEndReportView(APIView):
         
         # Get sales for the day
         sales = Sale.objects.filter(
-            tenant=request.tenant,
+            tenant=tenant,
             branch_id=branch_id,
             date__date=report_date,
             status='completed'
@@ -285,7 +306,7 @@ class DayEndReportView(APIView):
         till_float = None
         if till_float_id:
             try:
-                till_float = TillFloat.objects.get(id=till_float_id, tenant=request.tenant)
+                till_float = TillFloat.objects.get(id=till_float_id, tenant=tenant)
             except TillFloat.DoesNotExist:
                 pass
         
@@ -306,7 +327,7 @@ class DayEndReportView(APIView):
         }
         
         report = DayEndReport.objects.create(
-            tenant=request.tenant,
+            tenant=tenant,
             branch_id=branch_id,
             till_float=till_float,
             report_type=report_type,
@@ -324,10 +345,17 @@ class DayEndReportView(APIView):
     
     def get(self, request):
         """Get reports."""
+        tenant = get_tenant_from_request(request)
+        if not tenant:
+            return Response(
+                {'error': 'Tenant context not found.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
         branch_id = request.query_params.get('branch_id')
         report_type = request.query_params.get('report_type')
         
-        queryset = DayEndReport.objects.filter(tenant=request.tenant)
+        queryset = DayEndReport.objects.filter(tenant=tenant)
         
         if branch_id:
             queryset = queryset.filter(branch_id=branch_id)

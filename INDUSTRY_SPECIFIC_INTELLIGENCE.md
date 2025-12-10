@@ -208,3 +208,4 @@ The component automatically:
 5. **Category Switching**: Allow tenants to change category with data migration
 6. **Analytics**: Track which fields are most used per category
 
+

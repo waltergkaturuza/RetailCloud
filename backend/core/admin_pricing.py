@@ -40,3 +40,4 @@ class ModulePricingAdmin(admin.ModelAdmin):
     search_fields = ['pricing_rule__name', 'module__name', 'module__code']
     autocomplete_fields = ['module']
 
+

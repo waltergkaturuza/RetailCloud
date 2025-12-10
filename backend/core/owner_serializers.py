@@ -345,6 +345,7 @@ class TenantCreateUpdateSerializer(serializers.ModelSerializer):
             'subscription_status', 'trial_ends_at', 'subscription_ends_at',
             'timezone', 'currency', 'tax_rate', 'vat_number',
             'business_category', 'custom_category_name',
+            'logo', 'manager_signature', 'approved_by_signature', 'prepared_by_signature',
             'is_active'
         ]
     

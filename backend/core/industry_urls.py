@@ -16,3 +16,4 @@ urlpatterns = [
     path('category-modules/', CategoryModulesView.as_view(), name='category-modules'),
 ]
 
+

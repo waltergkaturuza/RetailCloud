@@ -34,7 +34,8 @@ INSTALLED_APPS = [
     'core.apps.CoreConfig',  # Use app config to load signals
     'accounts',
     'subscriptions.apps.SubscriptionsConfig',  # Use app config to load signals
-    'inventory',
+    'inventory.apps.InventoryConfig',  # Use app config to load signals
+    'accounting',  # Accounting for expenses, taxes, and financial tracking
     'pos',
     'sales',
     'purchases',

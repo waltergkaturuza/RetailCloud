@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import api from '../lib/api'
 import AdvancedSearch from '../components/AdvancedSearch'
 import Button from '../components/ui/Button'
@@ -33,20 +34,35 @@ interface Customer {
 }
 
 export default function Customers() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [showForm, setShowForm] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [showDetails, setShowDetails] = useState<Customer | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [filters, setFilters] = useState<any>({})
   const queryClient = useQueryClient()
+  
+  // Auto-open form if action=add in URL
+  useEffect(() => {
+    if (searchParams.get('action') === 'add') {
+      setShowForm(true)
+      setSelectedCustomer(null)
+      // Clean up URL
+      setSearchParams({}, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
 
   const { data: customersResponse, isLoading, error } = useQuery({
     queryKey: ['customers', searchQuery, filters],
     queryFn: async () => {
       const params: any = {}
       if (searchQuery) params.search = searchQuery
-      if (filters.is_active !== undefined) params.is_active = filters.is_active === 'true'
-      if (filters.credit_rating) params.credit_rating = filters.credit_rating
+      if (filters.is_active !== undefined && filters.is_active !== '') {
+        params.is_active = filters.is_active === 'true'
+      }
+      if (filters.credit_rating && filters.credit_rating !== '') {
+        params.credit_rating = filters.credit_rating
+      }
       
       const response = await api.get('/customers/customers/', { params })
       return response.data

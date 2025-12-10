@@ -92,3 +92,4 @@ Each page needs:
 
 **We're starting with Complete Tenant Management** - the most critical page. This will serve as the template for other pages.
 
+

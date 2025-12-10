@@ -10,6 +10,7 @@ from datetime import timedelta
 from pos.models import Sale
 from inventory.models import StockLevel, Product
 from customers.models import Customer
+from core.utils import get_tenant_from_request
 
 
 class SalesReportView(views.APIView):
@@ -18,18 +19,12 @@ class SalesReportView(views.APIView):
     
     def get(self, request):
         """Get sales report."""
-        # Get tenant from request or user
-        tenant = getattr(request, 'tenant', None)
-        if not tenant and request.user.is_authenticated and hasattr(request.user, 'tenant'):
-            tenant = request.user.tenant
-        
+        tenant = get_tenant_from_request(request)
         if not tenant:
             return Response(
                 {'error': 'No tenant found. Please ensure you are associated with a tenant.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        request.tenant = tenant
         
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
@@ -55,7 +50,16 @@ class SalesReportView(views.APIView):
         )
         
         if branch_id:
-            queryset = queryset.filter(branch_id=branch_id)
+            # Validate branch belongs to tenant
+            from core.models import Branch
+            try:
+                branch = Branch.objects.get(id=branch_id, tenant=tenant)
+                queryset = queryset.filter(branch_id=branch_id)
+            except Branch.DoesNotExist:
+                return Response(
+                    {'error': f'Branch {branch_id} not found or does not belong to your tenant.'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
         
         # Calculate totals
         totals = queryset.aggregate(
@@ -71,20 +75,48 @@ class SalesReportView(views.APIView):
             total=Sum('total_amount')
         )
         
-        # Daily breakdown
+        # Daily breakdown - ensure dates are serialized as strings
         daily_sales = queryset.values('date__date').annotate(
             count=Count('id'),
             total=Sum('total_amount')
         ).order_by('date__date')
         
+        # Convert daily breakdown to a list with properly formatted dates
+        daily_breakdown = []
+        for item in daily_sales:
+            date_value = item.get('date__date')
+            if date_value:
+                if isinstance(date_value, str):
+                    date_str = date_value
+                else:
+                    date_str = date_value.isoformat() if hasattr(date_value, 'isoformat') else str(date_value)
+                daily_breakdown.append({
+                    'date': date_str,
+                    'date__date': date_str,
+                    'count': item.get('count', 0),
+                    'total': float(item.get('total', 0) or 0)
+                })
+        
         return Response({
             'period': {
-                'start_date': start_date,
-                'end_date': end_date
+                'start_date': start_date.isoformat() if hasattr(start_date, 'isoformat') else str(start_date),
+                'end_date': end_date.isoformat() if hasattr(end_date, 'isoformat') else str(end_date)
             },
-            'summary': totals,
-            'payment_methods': payment_methods,
-            'daily_breakdown': daily_sales
+            'summary': {
+                'total_sales': totals.get('total_sales', 0),
+                'total_amount': float(totals.get('total_amount', 0) or 0),
+                'total_tax': float(totals.get('total_tax', 0) or 0),
+                'total_discount': float(totals.get('total_discount', 0) or 0)
+            },
+            'payment_methods': [
+                {
+                    'payment_method': item.get('payment_method', 'unknown'),
+                    'count': item.get('count', 0),
+                    'total': float(item.get('total', 0) or 0)
+                }
+                for item in payment_methods
+            ],
+            'daily_breakdown': daily_breakdown
         })
 
 
@@ -94,24 +126,27 @@ class InventoryReportView(views.APIView):
     
     def get(self, request):
         """Get inventory report."""
-        # Get tenant from request or user
-        tenant = getattr(request, 'tenant', None)
-        if not tenant and request.user.is_authenticated and hasattr(request.user, 'tenant'):
-            tenant = request.user.tenant
-        
+        tenant = get_tenant_from_request(request)
         if not tenant:
             return Response(
                 {'error': 'No tenant found. Please ensure you are associated with a tenant.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        request.tenant = tenant
-        
         branch_id = request.query_params.get('branch_id')
         
         queryset = StockLevel.objects.filter(tenant=tenant)
         if branch_id:
-            queryset = queryset.filter(branch_id=branch_id)
+            # Validate branch belongs to tenant
+            from core.models import Branch
+            try:
+                branch = Branch.objects.get(id=branch_id, tenant=tenant)
+                queryset = queryset.filter(branch_id=branch_id)
+            except Branch.DoesNotExist:
+                return Response(
+                    {'error': f'Branch {branch_id} not found or does not belong to your tenant.'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
         
         # Low stock items - filter in Python since is_low_stock is a property
         low_stock = []
@@ -146,26 +181,21 @@ class InventoryReportView(views.APIView):
 
 
 class ProfitLossReportView(views.APIView):
-    """Profit & Loss report."""
+    """Comprehensive Trading Profit & Loss report."""
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
-        """Get P&L report."""
-        # Get tenant from request or user
-        tenant = getattr(request, 'tenant', None)
-        if not tenant and request.user.is_authenticated and hasattr(request.user, 'tenant'):
-            tenant = request.user.tenant
-        
+        """Get comprehensive P&L statement."""
+        tenant = get_tenant_from_request(request)
         if not tenant:
             return Response(
                 {'error': 'No tenant found. Please ensure you are associated with a tenant.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        request.tenant = tenant
-        
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
+        branch_id = request.query_params.get('branch_id')
         
         if not start_date:
             start_date = timezone.now().date() - timedelta(days=30)
@@ -177,33 +207,96 @@ class ProfitLossReportView(views.APIView):
         else:
             end_date = timezone.datetime.strptime(end_date, '%Y-%m-%d').date()
         
-        # Sales revenue
-        sales = Sale.objects.filter(
-            tenant=tenant,
-            date__date__gte=start_date,
-            date__date__lte=end_date,
-            status='completed'
-        )
+        # Use comprehensive P&L service
+        from .pl_service import TradingProfitLossService
         
-        revenue = sales.aggregate(total=Sum('total_amount'))['total'] or 0
-        cost_of_goods = 0  # Calculate from sale items
+        branch_id_int = int(branch_id) if branch_id else None
+        pl_service = TradingProfitLossService(tenant, start_date, end_date, branch_id_int)
+        pl_statement = pl_service.generate_pl_statement()
         
-        # TODO: Calculate COGS from sale items
-        for sale in sales:
-            for item in sale.items.all():
-                cost_of_goods += (item.cost_price or 0) * item.quantity
+        return Response(pl_statement)
+    
+    def post(self, request):
+        """Generate and download P&L as PDF."""
+        tenant = get_tenant_from_request(request)
+        if not tenant:
+            return Response(
+                {'error': 'No tenant found. Please ensure you are associated with a tenant.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
-        gross_profit = revenue - cost_of_goods
-        gross_profit_margin = (gross_profit / revenue * 100) if revenue > 0 else 0
+        start_date = request.data.get('start_date') or request.query_params.get('start_date')
+        end_date = request.data.get('end_date') or request.query_params.get('end_date')
+        branch_id = request.data.get('branch_id') or request.query_params.get('branch_id')
         
-        return Response({
-            'period': {
-                'start_date': start_date,
-                'end_date': end_date
-            },
-            'revenue': revenue,
-            'cost_of_goods_sold': cost_of_goods,
-            'gross_profit': gross_profit,
-            'gross_profit_margin': round(gross_profit_margin, 2)
-        })
+        if not start_date:
+            start_date = timezone.now().date() - timedelta(days=30)
+        else:
+            start_date = timezone.datetime.strptime(start_date, '%Y-%m-%d').date()
+        
+        if not end_date:
+            end_date = timezone.now().date()
+        else:
+            end_date = timezone.datetime.strptime(end_date, '%Y-%m-%d').date()
+        
+        try:
+            from .pl_service import TradingProfitLossService
+            from .pdf_service import PLStatementPDF
+            from core.receipt_models import ReceiptTemplate
+            import os
+            from django.conf import settings
+            
+            branch_id_int = int(branch_id) if branch_id else None
+            pl_service = TradingProfitLossService(tenant, start_date, end_date, branch_id_int)
+            pl_statement = pl_service.generate_pl_statement()
+            
+            # Try to get logo from Tenant model first, fallback to ReceiptTemplate
+            logo_path = None
+            try:
+                # First try tenant logo
+                if tenant.logo:
+                    logo_path = tenant.logo.path
+                    if not os.path.exists(logo_path):
+                        logo_path = None
+                
+                # Fallback to ReceiptTemplate logo
+                if not logo_path:
+                    receipt_template = ReceiptTemplate.objects.filter(
+                        tenant=tenant,
+                        is_default=True
+                    ).first()
+                    
+                    if receipt_template and receipt_template.logo:
+                        logo_path = receipt_template.logo.path
+                        if not os.path.exists(logo_path):
+                            logo_path = None
+            except Exception:
+                # If logo retrieval fails, continue without it
+                logo_path = None
+            
+            # Generate PDF
+            pdf_generator = PLStatementPDF(pl_statement, tenant, logo_path=logo_path)
+            pdf_buffer = pdf_generator.generate_pdf()
+            
+            from django.http import HttpResponse
+            response = HttpResponse(pdf_buffer.read(), content_type='application/pdf')
+            filename = f"P&L_{start_date}_{end_date}.pdf"
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+            
+        except ImportError as e:
+            return Response(
+                {'error': f'PDF generation requires reportlab. Install with: pip install reportlab. Error: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        except Exception as e:
+            import traceback
+            import sys
+            error_details = traceback.format_exc()
+            print(f"PDF Generation Error: {str(e)}", file=sys.stderr)
+            print(error_details, file=sys.stderr)
+            return Response(
+                {'error': f'Error generating PDF: {str(e)}', 'details': error_details},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 

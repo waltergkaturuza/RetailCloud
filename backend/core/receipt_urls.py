@@ -14,3 +14,4 @@ urlpatterns = [
     path('log-print/', LogReceiptPrintView.as_view(), name='log-receipt-print'),
 ]
 
+

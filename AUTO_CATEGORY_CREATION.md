@@ -172,3 +172,4 @@ INDUSTRY_DEFAULT_CATEGORIES = {
 
 No database migration needed - this uses existing `Category` model. Just ensure signals are loaded by having `core.apps.CoreConfig` in `INSTALLED_APPS`.
 
+

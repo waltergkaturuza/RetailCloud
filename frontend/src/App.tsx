@@ -11,11 +11,14 @@ import Customers from './pages/Customers'
 import Sales from './pages/Sales'
 import Reports from './pages/Reports'
 import Purchases from './pages/Purchases'
+import Returns from './pages/Returns'
 import Inventory from './pages/Inventory'
 import Suppliers from './pages/Suppliers'
 import Users from './pages/Users'
 import PermissionsMatrix from './pages/PermissionsMatrix'
 import Settings from './pages/Settings'
+import Expenses from './pages/Expenses'
+import Taxes from './pages/Taxes'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
 import RoleProtectedRoute from './components/RoleProtectedRoute'
@@ -116,6 +119,11 @@ function App() {
                       <Purchases />
                     </RoleProtectedRoute>
                   } />
+                  <Route path="returns" element={
+                    <RoleProtectedRoute requiredPermission="canAccessReturns">
+                      <Returns />
+                    </RoleProtectedRoute>
+                  } />
                   <Route path="inventory" element={
                     <RoleProtectedRoute requiredPermission="canAccessInventory">
                       <Inventory />
@@ -139,6 +147,16 @@ function App() {
                   <Route path="settings" element={
                     <RoleProtectedRoute requiredPermission="canAccessSettings">
                       <Settings />
+                    </RoleProtectedRoute>
+                  } />
+                  <Route path="expenses" element={
+                    <RoleProtectedRoute requiredPermission="canAccessReports">
+                      <Expenses />
+                    </RoleProtectedRoute>
+                  } />
+                  <Route path="taxes" element={
+                    <RoleProtectedRoute requiredPermission="canAccessReports">
+                      <Taxes />
                     </RoleProtectedRoute>
                   } />
                 </Route>

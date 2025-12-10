@@ -193,3 +193,4 @@ class DayEndReport(models.Model):
     def __str__(self):
         return f"{self.get_report_type_display()} - {self.branch.name} ({self.generated_at.date()})"
 
+

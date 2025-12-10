@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import api from '../lib/api'
 import AdvancedSearch from '../components/AdvancedSearch'
 import Button from '../components/ui/Button'
@@ -39,20 +40,35 @@ interface Category {
 
 export default function Products() {
   const { can } = usePermissions()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [showForm, setShowForm] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [filters, setFilters] = useState<any>({})
   const queryClient = useQueryClient()
+  
+  // Auto-open form if action=add in URL
+  useEffect(() => {
+    if (searchParams.get('action') === 'add') {
+      setShowForm(true)
+      setSelectedProduct(null)
+      // Clean up URL
+      setSearchParams({}, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
 
   const { data: productsResponse, isLoading, error } = useQuery({
     queryKey: ['products', searchQuery, filters],
     queryFn: async () => {
       const params: any = {};
       if (searchQuery) params.search = searchQuery;
-      if (filters.category) params.category = filters.category;
-      if (filters.is_active !== undefined) params.is_active = filters.is_active === 'true';
-      if (filters.track_inventory !== undefined) params.track_inventory = filters.track_inventory === 'true';
+      if (filters.category && filters.category !== '') params.category = filters.category;
+      if (filters.is_active !== undefined && filters.is_active !== '') {
+        params.is_active = filters.is_active === 'true';
+      }
+      if (filters.track_inventory !== undefined && filters.track_inventory !== '') {
+        params.track_inventory = filters.track_inventory === 'true';
+      }
       
       const response = await api.get('/inventory/products/', { params })
       return response.data
@@ -358,10 +374,26 @@ function ProductForm({ product, categories, onClose, onSuccess }: any) {
       onSuccess()
     },
     onError: (error: any) => {
+      // Reset submitting state
+      setIsSubmitting(false)
+      
+      // Handle timeout or network errors
+      if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+        toast.error('Request timed out. Please try again.')
+        return
+      }
+      
+      if (!error.response) {
+        toast.error('Network error. Please check your connection and try again.')
+        return
+      }
+      
       const errors = error.response?.data || {}
       setFormErrors(errors)
       if (errors.non_field_errors) {
         toast.error(errors.non_field_errors[0])
+      } else if (errors.tenant) {
+        toast.error(errors.tenant)
       } else {
         toast.error('Failed to save product. Please check the form for errors.')
       }

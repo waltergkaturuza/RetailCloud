@@ -120,3 +120,4 @@ Ensure all module codes referenced in `seed_business_categories.py` exist:
 5. ⏭️ Frontend category selector
 6. ⏭️ Registration form integration
 
+

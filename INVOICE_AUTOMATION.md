@@ -206,3 +206,4 @@ python manage.py shell
 >>> invoice = generate_subscription_invoice(sub, days_before_expiry=7)
 ```
 
+

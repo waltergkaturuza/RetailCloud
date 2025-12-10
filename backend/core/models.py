@@ -4,6 +4,7 @@ Core models for multi-tenancy and base functionality.
 from django.db import models
 from django.utils import timezone
 from django.core.exceptions import ValidationError
+from django.core.validators import FileExtensionValidator
 
 
 class Tenant(models.Model):
@@ -38,6 +39,36 @@ class Tenant(models.Model):
     currency = models.CharField(max_length=3, default='USD')
     tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
     vat_number = models.CharField(max_length=50, blank=True)
+    
+    # Branding & Documents
+    logo = models.ImageField(
+        upload_to='tenant_logos/',
+        null=True,
+        blank=True,
+        help_text="Company logo used across the system (receipts, reports, etc.)",
+        validators=[FileExtensionValidator(allowed_extensions=['png', 'jpg', 'jpeg', 'svg', 'gif'])]
+    )
+    manager_signature = models.ImageField(
+        upload_to='tenant_signatures/',
+        null=True,
+        blank=True,
+        help_text="Manager signature for documents and reports",
+        validators=[FileExtensionValidator(allowed_extensions=['png', 'jpg', 'jpeg', 'svg'])]
+    )
+    approved_by_signature = models.ImageField(
+        upload_to='tenant_signatures/',
+        null=True,
+        blank=True,
+        help_text="Approver signature for documents requiring approval",
+        validators=[FileExtensionValidator(allowed_extensions=['png', 'jpg', 'jpeg', 'svg'])]
+    )
+    prepared_by_signature = models.ImageField(
+        upload_to='tenant_signatures/',
+        null=True,
+        blank=True,
+        help_text="Prepared by signature for documents",
+        validators=[FileExtensionValidator(allowed_extensions=['png', 'jpg', 'jpeg', 'svg'])]
+    )
     
     # Business Category
     business_category = models.ForeignKey(

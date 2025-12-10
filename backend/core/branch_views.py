@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from django.core.exceptions import ValidationError
 from .models import Branch
 from .branch_serializers import BranchSerializer, BranchListSerializer
+from core.utils import get_tenant_from_request
 
 
 class BranchViewSet(viewsets.ModelViewSet):
@@ -16,9 +17,16 @@ class BranchViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Filter branches by tenant."""
+        tenant = get_tenant_from_request(self.request)
+        
         queryset = Branch.objects.all()
-        if hasattr(self.request, 'tenant') and self.request.tenant:
-            queryset = queryset.filter(tenant=self.request.tenant)
+        if tenant:
+            queryset = queryset.filter(tenant=tenant)
+        else:
+            # If no tenant found, return empty queryset (or all if super_admin)
+            if not (self.request.user.is_authenticated and hasattr(self.request.user, 'role') and self.request.user.role == 'super_admin'):
+                queryset = queryset.none()
+        
         return queryset.select_related('manager', 'tenant').order_by('-is_main', 'name')
     
     def get_serializer_class(self):
@@ -29,13 +37,9 @@ class BranchViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         """Create branch with tenant assignment."""
-        tenant = getattr(self.request, 'tenant', None)
+        tenant = get_tenant_from_request(self.request)
         if not tenant:
-            # Try to get tenant from user
-            if hasattr(self.request.user, 'tenant') and self.request.user.tenant:
-                tenant = self.request.user.tenant
-            else:
-                raise ValidationError("Cannot create branch: No tenant associated with this request.")
+            raise ValidationError("Cannot create branch: No tenant associated with this request.")
         
         branch = serializer.save(tenant=tenant)
         

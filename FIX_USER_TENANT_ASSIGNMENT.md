@@ -64,3 +64,4 @@ Once rutendo (and any other users) have tenants assigned:
 
 **Recommended:** Use Option 1 (Django Admin) for immediate fix, or Option 2 (Management Command) if you have multiple users to fix! 🚀
 
+

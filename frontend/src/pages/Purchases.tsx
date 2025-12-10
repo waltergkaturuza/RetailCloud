@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import api from '../lib/api'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
+import BranchSelector from '../components/BranchSelector'
 import toast from 'react-hot-toast'
 
 interface PurchaseOrder {
@@ -23,11 +25,22 @@ interface PurchaseOrder {
 }
 
 export default function Purchases() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [showForm, setShowForm] = useState(false)
   const [showGRNForm, setShowGRNForm] = useState<PurchaseOrder | null>(null)
   const [showDetails, setShowDetails] = useState<PurchaseOrder | null>(null)
   const [activeTab, setActiveTab] = useState<'orders' | 'grns'>('orders')
   const queryClient = useQueryClient()
+  
+  // Auto-open PO form if action=create-po in URL
+  useEffect(() => {
+    if (searchParams.get('action') === 'create-po') {
+      setShowForm(true)
+      setActiveTab('orders')
+      // Clean up URL
+      setSearchParams({}, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
 
   const { data: purchaseOrdersResponse, isLoading: ordersLoading } = useQuery({
     queryKey: ['purchase-orders'],
@@ -200,13 +213,13 @@ export default function Purchases() {
                           >
                             View
                           </Button>
-                          {['draft', 'sent'].includes(po.status) && (
+                          {['draft', 'sent', 'partially_received'].includes(po.status) && (
                             <Button 
                               size="sm" 
                               variant="primary"
                               onClick={() => setShowGRNForm(po)}
                             >
-                              Receive
+                              {po.status === 'partially_received' ? 'Receive More' : 'Receive'}
                             </Button>
                           )}
                           {['draft'].includes(po.status) && (
@@ -333,6 +346,10 @@ export default function Purchases() {
         <PODetailsModal
           purchaseOrder={showDetails}
           onClose={() => setShowDetails(null)}
+          onReceiveGoods={() => {
+            setShowDetails(null)
+            setShowGRNForm(showDetails)
+          }}
         />
       )}
     </div>
@@ -342,7 +359,7 @@ export default function Purchases() {
 function PurchaseOrderForm({ suppliers, onClose, onSuccess }: any) {
   const [formData, setFormData] = useState({
     supplier: '',
-    branch_id: 1,
+    branch_id: null as number | null,
     expected_delivery_date: '',
     items: [{ product_id: '', quantity: 1, unit_price: '0' }],
     notes: '',
@@ -364,6 +381,10 @@ function PurchaseOrderForm({ suppliers, onClose, onSuccess }: any) {
 
   const mutation = useMutation({
     mutationFn: async (data: any) => {
+      if (!data.branch_id) {
+        throw new Error('Branch is required')
+      }
+      
       const items = data.items.map((item: any) => ({
         product_id: parseInt(item.product_id),
         quantity: parseInt(item.quantity),
@@ -375,7 +396,7 @@ function PurchaseOrderForm({ suppliers, onClose, onSuccess }: any) {
       )
       
       return api.post('/purchases/purchase-orders/', {
-        branch_id: data.branch_id,
+        branch_id: parseInt(data.branch_id),
         supplier: parseInt(data.supplier),
         expected_delivery_date: data.expected_delivery_date || null,
         items: items,
@@ -396,6 +417,11 @@ function PurchaseOrderForm({ suppliers, onClose, onSuccess }: any) {
     
     if (!formData.supplier) {
       setFormErrors({ supplier: ['This field is required.'] })
+      return
+    }
+    
+    if (!formData.branch_id) {
+      setFormErrors({ branch_id: ['This field is required.'] })
       return
     }
     
@@ -422,23 +448,37 @@ function PurchaseOrderForm({ suppliers, onClose, onSuccess }: any) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '900px', maxHeight: '90vh', overflowY: 'auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <h2 style={{ margin: 0 }}>Create Purchase Order</h2>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '950px', maxHeight: '90vh', overflowY: 'auto', padding: '32px' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', paddingBottom: '20px', borderBottom: '2px solid #ecf0f1' }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '600', color: '#2c3e50' }}>Create Purchase Order</h2>
+            <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#7f8c8d' }}>Fill in the details to create a new purchase order</p>
+          </div>
           <button
             onClick={onClose}
             style={{
-              background: 'none',
+              background: '#f8f9fa',
               border: 'none',
               fontSize: '24px',
               cursor: 'pointer',
               color: '#7f8c8d',
               padding: '0',
-              width: '32px',
-              height: '32px',
+              width: '36px',
+              height: '36px',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              borderRadius: '6px',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#e74c3c'
+              e.currentTarget.style.color = 'white'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = '#f8f9fa'
+              e.currentTarget.style.color = '#7f8c8d'
             }}
           >
             ×
@@ -446,45 +486,98 @@ function PurchaseOrderForm({ suppliers, onClose, onSuccess }: any) {
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>
-                Supplier <span style={{ color: '#e74c3c' }}>*</span>
-              </label>
-              <select
-                value={formData.supplier}
-                onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
-                className="input"
-                style={{ width: '100%' }}
-                required
-              >
-                <option value="">Select Supplier</option>
-                {suppliers.map((s: any) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-              {formErrors.supplier && <span style={{ color: '#e74c3c', fontSize: '12px', marginTop: '4px', display: 'block' }}>
-                {Array.isArray(formErrors.supplier) ? formErrors.supplier[0] : formErrors.supplier}
-              </span>}
-            </div>
+          {/* Basic Information Section */}
+          <div style={{ marginBottom: '32px' }}>
+            <h3 style={{ margin: '0 0 20px 0', fontSize: '16px', fontWeight: '600', color: '#2c3e50', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>📋</span> Basic Information
+            </h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px', color: '#34495e' }}>
+                  Branch <span style={{ color: '#e74c3c' }}>*</span>
+                </label>
+                <BranchSelector
+                  selectedBranch={formData.branch_id}
+                  onBranchChange={(branchId) => setFormData({ ...formData, branch_id: branchId as number })}
+                  showAll={false}
+                  label=""
+                  placeholder="Select branch..."
+                  style={{ 
+                    padding: '10px 14px',
+                    fontSize: '14px',
+                    border: formErrors.branch_id ? '2px solid #e74c3c' : '1px solid #ddd',
+                    borderRadius: '6px',
+                    backgroundColor: 'white',
+                    cursor: 'pointer'
+                  }}
+                />
+                {formErrors.branch_id && (
+                  <div style={{ color: '#e74c3c', fontSize: '12px', marginTop: '6px' }}>
+                    {Array.isArray(formErrors.branch_id) ? formErrors.branch_id[0] : formErrors.branch_id}
+                  </div>
+                )}
+              </div>
 
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>
-                Expected Delivery Date
-              </label>
-              <input
-                type="date"
-                value={formData.expected_delivery_date}
-                onChange={(e) => setFormData({ ...formData, expected_delivery_date: e.target.value })}
-                className="input"
-                style={{ width: '100%' }}
-              />
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px', color: '#34495e' }}>
+                  Supplier <span style={{ color: '#e74c3c' }}>*</span>
+                </label>
+                <select
+                  value={formData.supplier}
+                  onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
+                  className="input"
+                  style={{ 
+                    width: '100%', 
+                    padding: '10px 14px', 
+                    fontSize: '14px', 
+                    border: formErrors.supplier ? '2px solid #e74c3c' : '1px solid #ddd',
+                    borderRadius: '6px',
+                    backgroundColor: 'white',
+                    cursor: 'pointer'
+                  }}
+                  required
+                >
+                  <option value="">Select Supplier</option>
+                  {suppliers.map((s: any) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+                {formErrors.supplier && (
+                  <div style={{ color: '#e74c3c', fontSize: '12px', marginTop: '6px' }}>
+                    {Array.isArray(formErrors.supplier) ? formErrors.supplier[0] : formErrors.supplier}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px', color: '#34495e' }}>
+                  Expected Delivery Date
+                </label>
+                <input
+                  type="date"
+                  value={formData.expected_delivery_date}
+                  onChange={(e) => setFormData({ ...formData, expected_delivery_date: e.target.value })}
+                  className="input"
+                  style={{ 
+                    width: '100%', 
+                    padding: '10px 14px', 
+                    fontSize: '14px',
+                    border: '1px solid #ddd',
+                    borderRadius: '6px',
+                    backgroundColor: 'white',
+                    cursor: 'pointer'
+                  }}
+                />
+              </div>
             </div>
           </div>
 
-          <div style={{ marginBottom: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <label style={{ fontWeight: '500' }}>Items</label>
+          {/* Items Section */}
+          <div style={{ marginBottom: '32px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#2c3e50', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>📦</span> Order Items
+              </h3>
               <Button
                 type="button"
                 variant="secondary"
@@ -495,126 +588,176 @@ function PurchaseOrderForm({ suppliers, onClose, onSuccess }: any) {
                     items: [...formData.items, { product_id: '', quantity: 1, unit_price: '0' }]
                   })
                 }}
+                style={{ fontSize: '13px' }}
               >
                 + Add Item
               </Button>
             </div>
             
-            <div style={{ border: '1px solid #ecf0f1', borderRadius: '6px', overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead style={{ background: '#f8f9fa' }}>
-                  <tr>
-                    <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Product</th>
-                    <th style={{ padding: '10px', textAlign: 'right', fontSize: '13px', fontWeight: '600' }}>Qty</th>
-                    <th style={{ padding: '10px', textAlign: 'right', fontSize: '13px', fontWeight: '600' }}>Unit Price</th>
-                    <th style={{ padding: '10px', textAlign: 'right', fontSize: '13px', fontWeight: '600' }}>Total</th>
-                    <th style={{ padding: '10px', width: '50px' }}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {formData.items.map((item, idx) => (
-                    <tr key={idx} style={{ borderTop: '1px solid #ecf0f1' }}>
-                      <td style={{ padding: '10px' }}>
-                        <select
-                          value={item.product_id}
-                          onChange={(e) => updateItem(idx, 'product_id', e.target.value)}
-                          className="input"
-                          style={{ width: '100%' }}
-                          required
-                        >
-                          <option value="">Select Product</option>
-                          {products.map((p: any) => (
-                            <option key={p.id} value={p.id}>{p.name} (${p.cost_price || '0.00'})</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td style={{ padding: '10px' }}>
-                        <input
-                          type="number"
-                          min="1"
-                          value={item.quantity}
-                          onChange={(e) => updateItem(idx, 'quantity', e.target.value)}
-                          className="input"
-                          style={{ width: '80px', textAlign: 'right' }}
-                          required
-                        />
-                      </td>
-                      <td style={{ padding: '10px' }}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={item.unit_price}
-                          onChange={(e) => updateItem(idx, 'unit_price', e.target.value)}
-                          className="input"
-                          style={{ width: '100px', textAlign: 'right' }}
-                          required
-                        />
-                      </td>
-                      <td style={{ padding: '10px', textAlign: 'right', fontWeight: '600' }}>
-                        ${((parseInt(item.quantity) || 0) * (parseFloat(item.unit_price) || 0)).toFixed(2)}
-                      </td>
-                      <td style={{ padding: '10px', textAlign: 'center' }}>
-                        {formData.items.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setFormData({
-                                ...formData,
-                                items: formData.items.filter((_, i) => i !== idx)
-                              })
-                            }}
-                            style={{
-                              background: '#e74c3c',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '4px',
-                              width: '28px',
-                              height: '28px',
-                              cursor: 'pointer',
-                              fontSize: '18px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
-                            }}
-                          >
-                            ×
-                          </button>
-                        )}
-                      </td>
+            <div style={{ border: '1px solid #e1e8ed', borderRadius: '8px', overflow: 'hidden', background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ background: 'linear-gradient(to bottom, #f8f9fa, #e9ecef)' }}>
+                      <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '13px', fontWeight: '600', color: '#495057', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #dee2e6' }}>Product</th>
+                      <th style={{ padding: '14px 16px', textAlign: 'center', fontSize: '13px', fontWeight: '600', color: '#495057', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #dee2e6', width: '120px' }}>Quantity</th>
+                      <th style={{ padding: '14px 16px', textAlign: 'right', fontSize: '13px', fontWeight: '600', color: '#495057', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #dee2e6', width: '140px' }}>Unit Price</th>
+                      <th style={{ padding: '14px 16px', textAlign: 'right', fontSize: '13px', fontWeight: '600', color: '#495057', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #dee2e6', width: '120px' }}>Total</th>
+                      <th style={{ padding: '14px 16px', width: '60px', borderBottom: '2px solid #dee2e6' }}></th>
                     </tr>
-                  ))}
-                </tbody>
-                <tfoot style={{ background: '#f8f9fa', borderTop: '2px solid #ecf0f1' }}>
-                  <tr>
-                    <td colSpan={3} style={{ padding: '12px', textAlign: 'right', fontWeight: '600' }}>Total:</td>
-                    <td style={{ padding: '12px', textAlign: 'right', fontWeight: '600', fontSize: '16px', color: '#2ecc71' }}>
-                      ${total.toFixed(2)}
-                    </td>
-                    <td></td>
-                  </tr>
-                </tfoot>
-              </table>
+                  </thead>
+                  <tbody>
+                    {formData.items.map((item, idx) => (
+                      <tr key={idx} style={{ borderBottom: '1px solid #f1f3f5', transition: 'background 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'} onMouseLeave={(e) => e.currentTarget.style.background = 'white'}>
+                        <td style={{ padding: '14px 16px' }}>
+                          <select
+                            value={item.product_id}
+                            onChange={(e) => updateItem(idx, 'product_id', e.target.value)}
+                            className="input"
+                            style={{ width: '100%', padding: '8px 12px', fontSize: '14px', border: '1px solid #ddd', borderRadius: '4px' }}
+                            required
+                          >
+                            <option value="">Select Product</option>
+                            {products.map((p: any) => (
+                              <option key={p.id} value={p.id}>{p.name} {p.cost_price ? `($${parseFloat(p.cost_price).toFixed(2)})` : ''}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                          <input
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={(e) => updateItem(idx, 'quantity', e.target.value)}
+                            className="input"
+                            style={{ width: '100%', padding: '8px 12px', fontSize: '14px', textAlign: 'center', border: '1px solid #ddd', borderRadius: '4px' }}
+                            required
+                          />
+                        </td>
+                        <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end' }}>
+                            <span style={{ color: '#7f8c8d', fontSize: '14px' }}>$</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={item.unit_price}
+                              onChange={(e) => updateItem(idx, 'unit_price', e.target.value)}
+                              className="input"
+                              style={{ width: '100px', padding: '8px 12px', fontSize: '14px', textAlign: 'right', border: '1px solid #ddd', borderRadius: '4px' }}
+                              required
+                            />
+                          </div>
+                        </td>
+                        <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '600', color: '#2c3e50', fontSize: '14px' }}>
+                          ${((parseInt(item.quantity) || 0) * (parseFloat(item.unit_price) || 0)).toFixed(2)}
+                        </td>
+                        <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                          {formData.items.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFormData({
+                                  ...formData,
+                                  items: formData.items.filter((_, i) => i !== idx)
+                                })
+                              }}
+                              style={{
+                                background: '#fee',
+                                color: '#e74c3c',
+                                border: '1px solid #fcc',
+                                borderRadius: '4px',
+                                width: '32px',
+                                height: '32px',
+                                cursor: 'pointer',
+                                fontSize: '18px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'all 0.2s'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = '#e74c3c'
+                                e.currentTarget.style.color = 'white'
+                                e.currentTarget.style.borderColor = '#e74c3c'
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = '#fee'
+                                e.currentTarget.style.color = '#e74c3c'
+                                e.currentTarget.style.borderColor = '#fcc'
+                              }}
+                            >
+                              ×
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{ background: '#f8f9fa', borderTop: '2px solid #dee2e6' }}>
+                      <td colSpan={3} style={{ padding: '16px', textAlign: 'right', fontWeight: '600', fontSize: '15px', color: '#495057' }}>
+                        Grand Total:
+                      </td>
+                      <td style={{ padding: '16px', textAlign: 'right', fontWeight: '700', fontSize: '18px', color: '#2ecc71' }}>
+                        ${total.toFixed(2)}
+                      </td>
+                      <td style={{ padding: '16px' }}></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
             </div>
           </div>
 
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>Notes</label>
+          {/* Notes Section */}
+          <div style={{ marginBottom: '32px' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: '600', color: '#2c3e50', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>📝</span> Additional Notes
+            </h3>
             <textarea
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               className="input"
-              style={{ width: '100%', minHeight: '80px', resize: 'vertical' }}
-              placeholder="Additional notes..."
+              style={{ 
+                width: '100%', 
+                minHeight: '100px', 
+                resize: 'vertical',
+                padding: '12px 16px',
+                fontSize: '14px',
+                border: '1px solid #ddd',
+                borderRadius: '6px',
+                fontFamily: 'inherit',
+                lineHeight: '1.5'
+              }}
+              placeholder="Add any additional notes or instructions for this purchase order..."
             />
           </div>
 
-          <div className="flex gap-2" style={{ justifyContent: 'flex-end', marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #ecf0f1' }}>
-            <Button type="button" variant="secondary" onClick={onClose} disabled={mutation.isPending}>
+          {/* Action Buttons */}
+          <div style={{ 
+            display: 'flex', 
+            gap: '12px', 
+            justifyContent: 'flex-end', 
+            paddingTop: '24px', 
+            borderTop: '2px solid #ecf0f1',
+            marginTop: '32px'
+          }}>
+            <Button 
+              type="button" 
+              variant="secondary" 
+              onClick={onClose} 
+              disabled={mutation.isPending}
+              style={{ minWidth: '120px' }}
+            >
               Cancel
             </Button>
-            <Button type="submit" isLoading={mutation.isPending}>
-              Create Purchase Order
+            <Button 
+              type="submit" 
+              isLoading={mutation.isPending}
+              style={{ minWidth: '180px' }}
+            >
+              {mutation.isPending ? 'Creating...' : 'Create Purchase Order'}
             </Button>
           </div>
         </form>
@@ -652,6 +795,7 @@ function GRNForm({ purchaseOrder, onClose, onSuccess }: any) {
 
       return api.post('/purchases/grns/', {
         purchase_order: purchaseOrder.id,
+        branch_id: purchaseOrder.branch,  // Send branch_id from purchase order
         invoice_number: data.invoice_number,
         items: grnItems,
         notes: data.notes || '',
@@ -802,7 +946,9 @@ function GRNForm({ purchaseOrder, onClose, onSuccess }: any) {
   )
 }
 
-function PODetailsModal({ purchaseOrder, onClose }: any) {
+function PODetailsModal({ purchaseOrder, onClose, onReceiveGoods }: any) {
+  const canReceiveMore = purchaseOrder && ['draft', 'sent', 'partially_received'].includes(purchaseOrder.status)
+  const hasUnreceivedItems = purchaseOrder?.items?.some((item: any) => (item.received_quantity || 0) < item.quantity)
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '900px', maxHeight: '90vh', overflowY: 'auto' }}>
@@ -877,15 +1023,64 @@ function PODetailsModal({ purchaseOrder, onClose }: any) {
           </Card>
         )}
 
+        {/* Show GRNs for this PO */}
+        {purchaseOrder.grns && purchaseOrder.grns.length > 0 && (
+          <Card>
+            <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '16px' }}>Goods Received Notes (GRNs)</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {purchaseOrder.grns.map((grn: any) => (
+                <div key={grn.id} style={{ padding: '12px', border: '1px solid #ecf0f1', borderRadius: '6px', background: '#f8f9fa' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <strong style={{ color: '#3498db', fontFamily: 'monospace' }}>{grn.grn_number}</strong>
+                    <span style={{ fontSize: '12px', color: '#7f8c8d' }}>{new Date(grn.date).toLocaleString()}</span>
+                  </div>
+                  {grn.invoice_number && (
+                    <div style={{ fontSize: '13px', marginBottom: '4px' }}>
+                      <strong>Invoice:</strong> <span style={{ fontFamily: 'monospace' }}>{grn.invoice_number}</span>
+                    </div>
+                  )}
+                  {grn.notes && (
+                    <div style={{ fontSize: '13px', color: '#7f8c8d', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #e1e8ed' }}>
+                      <strong>Notes:</strong> {grn.notes}
+                    </div>
+                  )}
+                  <div style={{ fontSize: '12px', color: '#95a5a6', marginTop: '8px' }}>
+                    Received by: {grn.received_by_name || 'N/A'}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
         {purchaseOrder.notes && (
           <Card>
-            <h3 style={{ marginTop: 0, marginBottom: '12px', fontSize: '16px' }}>Notes</h3>
+            <h3 style={{ marginTop: 0, marginBottom: '12px', fontSize: '16px' }}>Purchase Order Notes</h3>
             <p style={{ margin: 0, color: '#7f8c8d' }}>{purchaseOrder.notes}</p>
           </Card>
         )}
 
-        <div style={{ marginTop: '24px', textAlign: 'right' }}>
-          <Button onClick={onClose}>Close</Button>
+        <div style={{ 
+          marginTop: '32px', 
+          paddingTop: '24px',
+          borderTop: '2px solid #ecf0f1',
+          display: 'flex', 
+          gap: '12px', 
+          justifyContent: 'flex-end' 
+        }}>
+          {canReceiveMore && hasUnreceivedItems && (
+            <Button 
+              variant="primary"
+              onClick={() => {
+                onClose()
+                onReceiveGoods()
+              }}
+              style={{ minWidth: '180px' }}
+            >
+              {purchaseOrder.status === 'partially_received' ? '📦 Receive More Goods' : '📦 Receive Goods'}
+            </Button>
+          )}
+          <Button onClick={onClose} variant="secondary">Close</Button>
         </div>
       </div>
     </div>

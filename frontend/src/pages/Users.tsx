@@ -41,8 +41,11 @@ export default function Users() {
     queryKey: ['users', searchQuery, filters],
     queryFn: async () => {
       const params: any = {}
-      if (filters.role) params.role = filters.role
-      if (filters.is_active !== undefined) params.is_active = filters.is_active === 'true'
+      if (searchQuery) params.search = searchQuery
+      if (filters.role && filters.role !== '') params.role = filters.role
+      if (filters.is_active !== undefined && filters.is_active !== '') {
+        params.is_active = filters.is_active === 'true'
+      }
       
       const response = await api.get('/auth/users/', { params })
       return response.data

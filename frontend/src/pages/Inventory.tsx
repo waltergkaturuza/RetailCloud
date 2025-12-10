@@ -14,6 +14,22 @@ export default function Inventory() {
   const [activeTab, setActiveTab] = useState<'stock' | 'movements' | 'batches'>('stock')
   const queryClient = useQueryClient()
 
+  // Fetch branches for filtering and adjustment
+  const { data: branchesResponse } = useQuery({
+    queryKey: ['branches'],
+    queryFn: async () => {
+      try {
+        const response = await api.get('/core/branches/')
+        const data = response.data?.results || response.data
+        return Array.isArray(data) ? data : []
+      } catch {
+        return []
+      }
+    },
+  })
+
+  const branches = Array.isArray(branchesResponse) ? branchesResponse : []
+
   const { data: stockLevelsResponse, isLoading } = useQuery({
     queryKey: ['stock-levels', filterBranch, filterLowStock],
     queryFn: async () => {
@@ -80,7 +96,9 @@ export default function Inventory() {
       toast.success('Stock adjusted successfully')
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.error || 'Failed to adjust stock')
+      const errorMsg = error.response?.data?.error || 'Failed to adjust stock'
+      console.error('Stock adjustment error:', error.response?.data)
+      toast.error(errorMsg)
     }
   })
 
@@ -219,7 +237,11 @@ export default function Inventory() {
                   style={{ width: '100%' }}
                 >
                   <option value="">All Branches</option>
-                  <option value="1">Main Branch</option>
+                  {branches.map((branch: any) => (
+                    <option key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -570,12 +592,38 @@ export default function Inventory() {
 function StockAdjustmentModal({ formData, onClose, onSubmit, isLoading }: any) {
   const [quantity, setQuantity] = useState(formData.currentStock.toString())
   const [notes, setNotes] = useState('')
+  const [selectedBranchId, setSelectedBranchId] = useState(formData.branchId?.toString() || '')
+  
+  // Fetch branches for the modal
+  const { data: branchesResponse } = useQuery({
+    queryKey: ['branches'],
+    queryFn: async () => {
+      try {
+        const response = await api.get('/core/branches/')
+        const data = response.data?.results || response.data
+        return Array.isArray(data) ? data : []
+      } catch {
+        return []
+      }
+    },
+  })
+
+  const branches = Array.isArray(branchesResponse) ? branchesResponse : []
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Use selected branch or fall back to formData branchId
+    const branchIdToUse = selectedBranchId || formData.branchId
+    
+    if (!branchIdToUse) {
+      toast.error('Please select a branch')
+      return
+    }
+    
     onSubmit({
       productId: formData.productId,
-      branchId: formData.branchId,
+      branchId: parseInt(branchIdToUse.toString()),
       quantity,
       notes,
     })
@@ -614,8 +662,34 @@ function StockAdjustmentModal({ formData, onClose, onSubmit, isLoading }: any) {
           <div><strong>Current Stock:</strong> {formData.currentStock}</div>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '20px' }}>
+        {branches.length === 0 ? (
+          <div style={{ padding: '20px', background: '#fff3cd', borderRadius: '6px', marginBottom: '20px' }}>
+            <p style={{ margin: 0, color: '#856404' }}>
+              <strong>No branches available.</strong> Please create a branch first before adjusting stock.
+            </p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>
+                Branch <span style={{ color: '#e74c3c' }}>*</span>
+              </label>
+              <select
+                value={selectedBranchId}
+                onChange={(e) => setSelectedBranchId(e.target.value)}
+                className="input"
+                style={{ width: '100%' }}
+                required
+              >
+                <option value="">Select Branch</option>
+                {branches.map((branch: any) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>
               New Stock Level <span style={{ color: '#e74c3c' }}>*</span>
             </label>
@@ -639,31 +713,32 @@ function StockAdjustmentModal({ formData, onClose, onSubmit, isLoading }: any) {
               }}>
                 {difference > 0 ? '+' : ''}{difference} units {difference > 0 ? 'increase' : 'decrease'}
               </div>
-            )}
-          </div>
+              )}
+            </div>
 
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>
-              Notes / Reason
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="input"
-              style={{ width: '100%', minHeight: '100px', resize: 'vertical' }}
-              placeholder="Reason for adjustment (e.g., damaged goods, stocktake correction, etc.)..."
-            />
-          </div>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>
+                Notes / Reason
+              </label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="input"
+                style={{ width: '100%', minHeight: '100px', resize: 'vertical' }}
+                placeholder="Reason for adjustment (e.g., damaged goods, stocktake correction, etc.)..."
+              />
+            </div>
 
-          <div className="flex gap-2" style={{ justifyContent: 'flex-end', marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #ecf0f1' }}>
-            <Button type="button" variant="secondary" onClick={onClose} disabled={isLoading}>
-              Cancel
-            </Button>
-            <Button type="submit" isLoading={isLoading}>
-              Save Adjustment
-            </Button>
-          </div>
-        </form>
+            <div className="flex gap-2" style={{ justifyContent: 'flex-end', marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #ecf0f1' }}>
+              <Button type="button" variant="secondary" onClick={onClose} disabled={isLoading}>
+                Cancel
+              </Button>
+              <Button type="submit" isLoading={isLoading}>
+                Save Adjustment
+              </Button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   )

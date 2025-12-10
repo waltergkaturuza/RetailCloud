@@ -1,0 +1,385 @@
+"""
+Comprehensive Trading Profit & Loss Statement Service
+Generates proper accounting-style P&L statements.
+"""
+from django.db.models import Sum, Q, F, DecimalField, Value
+from django.db.models.functions import Coalesce
+from decimal import Decimal
+from datetime import datetime, date
+from typing import Dict, List, Optional
+from django.utils import timezone
+
+from pos.models import Sale, SaleItem
+try:
+    from pos.return_models import SaleReturn
+except ImportError:
+    SaleReturn = None
+try:
+    from pos.return_service import ReturnProcessingService
+except ImportError:
+    # Fallback if return_service doesn't exist
+    ReturnProcessingService = None
+from accounting.models import Expense, TaxTransaction
+from inventory.models import StockLevel
+
+
+class TradingProfitLossService:
+    """Service to generate comprehensive Trading Profit & Loss statements."""
+    
+    def __init__(self, tenant, start_date: date, end_date: date, branch_id: Optional[int] = None):
+        self.tenant = tenant
+        self.start_date = start_date
+        self.end_date = end_date
+        self.branch_id = branch_id
+    
+    def generate_pl_statement(self) -> Dict:
+        """
+        Generate comprehensive Trading P&L statement.
+        
+        Structure:
+        - Trading Account (Revenue, COGS, Gross Profit)
+        - Operating Expenses
+        - Other Income/Expenses
+        - Taxes
+        - Net Profit
+        """
+        
+        # ===== TRADING ACCOUNT =====
+        trading = self._calculate_trading_account()
+        
+        # ===== OPERATING EXPENSES =====
+        operating_expenses = self._calculate_operating_expenses()
+        
+        # ===== OTHER EXPENSES =====
+        other_expenses = self._calculate_other_expenses()
+        
+        # ===== TAXES =====
+        taxes = self._calculate_taxes()
+        
+        # ===== OTHER INCOME =====
+        other_income = self._calculate_other_income()
+        
+        # ===== CALCULATIONS =====
+        # Convert all values to Decimal for consistent arithmetic
+        gross_profit = Decimal(str(trading['gross_profit']))
+        op_expenses_total = Decimal(str(operating_expenses['total']))
+        other_income_total = Decimal(str(other_income['total']))
+        other_expenses_total = Decimal(str(other_expenses['total']))
+        taxes_total = Decimal(str(taxes['total']))
+        revenue = Decimal(str(trading['revenue']))
+        
+        operating_profit = gross_profit - op_expenses_total
+        profit_before_tax = operating_profit + other_income_total - other_expenses_total
+        net_profit = profit_before_tax - taxes_total
+        
+        # Calculate margins
+        gross_profit_margin = float((gross_profit / revenue * 100) if revenue > 0 else 0)
+        operating_profit_margin = float((operating_profit / revenue * 100) if revenue > 0 else 0)
+        net_profit_margin = float((net_profit / revenue * 100) if revenue > 0 else 0)
+        
+        return {
+            'period': {
+                'start_date': self.start_date.isoformat(),
+                'end_date': self.end_date.isoformat(),
+                'tenant_name': self.tenant.company_name,
+                'branch': self.branch_id
+            },
+            'trading_account': trading,
+            'operating_expenses': operating_expenses,
+            'other_expenses': other_expenses,
+            'other_income': other_income,
+            'taxes': taxes,
+            'summary': {
+                'gross_profit': float(gross_profit),
+                'operating_expenses_total': float(op_expenses_total),
+                'operating_profit': float(operating_profit),
+                'other_income_total': float(other_income_total),
+                'other_expenses_total': float(other_expenses_total),
+                'profit_before_tax': float(profit_before_tax),
+                'taxes_total': float(taxes_total),
+                'net_profit': float(net_profit),
+                'margins': {
+                    'gross_profit_margin': round(gross_profit_margin, 2),
+                    'operating_profit_margin': round(operating_profit_margin, 2),
+                    'net_profit_margin': round(net_profit_margin, 2)
+                }
+            },
+            'generated_at': timezone.now().isoformat()
+        }
+    
+    def _calculate_trading_account(self) -> Dict:
+        """Calculate Trading Account: Revenue, COGS, Gross Profit."""
+        
+        # Build sales query
+        sales_query = Sale.objects.filter(
+            tenant=self.tenant,
+            date__date__gte=self.start_date,
+            date__date__lte=self.end_date,
+            status='completed'
+        )
+        
+        if self.branch_id:
+            sales_query = sales_query.filter(branch_id=self.branch_id)
+        
+        # Calculate Revenue
+        revenue_result = sales_query.aggregate(
+            total_revenue=Sum('total_amount'),
+            total_discount=Sum('discount_amount'),
+            total_sales_tax=Sum('tax_amount')
+        )
+        
+        revenue = Decimal(str(revenue_result['total_revenue'] or 0))
+        sales_discounts = Decimal(str(revenue_result['total_discount'] or 0))
+        sales_tax = Decimal(str(revenue_result['total_sales_tax'] or 0))
+        
+        # Calculate Returns & Refunds
+        returns = self._calculate_returns()
+        
+        # Net Revenue (after discounts and returns)
+        net_revenue = revenue - sales_discounts - returns['returns_value']
+        
+        # Calculate COGS
+        cogs = Decimal('0.00')
+        for sale in sales_query.select_related('branch').prefetch_related('items'):
+            for item in sale.items.all():
+                item_cost = Decimal(str(item.cost_price or 0)) * Decimal(str(item.quantity or 0))
+                cogs += item_cost
+        
+        # Adjust COGS for returns (restorable items reverse COGS)
+        cogs -= returns['cogs_reversed']
+        # Add write-offs to COGS (damaged returns increase cost)
+        cogs += returns['write_offs']
+        
+        # Gross Profit
+        gross_profit = net_revenue - cogs
+        
+        return {
+            'revenue': float(revenue),
+            'sales_discounts': float(sales_discounts),
+            'returns_value': float(returns['returns_value']),
+            'net_revenue': float(net_revenue),
+            'cost_of_goods_sold': float(cogs),
+            'returns_adjustment': {
+                'cogs_reversed': float(returns['cogs_reversed']),
+                'write_offs': float(returns['write_offs'])
+            },
+            'gross_profit': float(gross_profit),
+            'gross_profit_margin': float((gross_profit / net_revenue * 100) if net_revenue > 0 else 0)
+        }
+    
+    def _calculate_returns(self) -> Dict:
+        """Calculate return impacts on revenue and COGS."""
+        # Initialize defaults
+        returns_value = Decimal('0.00')
+        cogs_reversed = Decimal('0.00')
+        write_offs = Decimal('0.00')
+        
+        # Check if SaleReturn model is available
+        if not SaleReturn:
+            return {
+                'returns_value': returns_value,
+                'cogs_reversed': cogs_reversed,
+                'write_offs': write_offs
+            }
+        
+        returns_query = SaleReturn.objects.filter(
+            tenant=self.tenant,
+            date__date__gte=self.start_date,
+            date__date__lte=self.end_date,
+            status__in=['approved', 'processed']
+        )
+        
+        if self.branch_id:
+            returns_query = returns_query.filter(branch_id=self.branch_id)
+        
+        for sale_return in returns_query.prefetch_related('items'):
+            returns_value += sale_return.total_amount
+            
+            # Calculate impact per item
+            for return_item in sale_return.items.all():
+                cost_per_unit = Decimal(str(return_item.product.cost_price or 0))
+                quantity = Decimal(str(return_item.quantity_returned))
+                
+                if ReturnProcessingService and ReturnProcessingService.can_restore_to_inventory(return_item.condition):
+                    # Restorable: COGS reversed
+                    cogs_reversed += cost_per_unit * quantity
+                else:
+                    # Damaged: Write-off
+                    write_offs += cost_per_unit * quantity
+        
+        return {
+            'returns_value': returns_value,
+            'cogs_reversed': cogs_reversed,
+            'write_offs': write_offs
+        }
+    
+    def _calculate_operating_expenses(self) -> Dict:
+        """Calculate operating expenses by category."""
+        expenses_query = Expense.objects.filter(
+            tenant=self.tenant,
+            date__gte=self.start_date,
+            date__lte=self.end_date
+        )
+        
+        if self.branch_id:
+            expenses_query = expenses_query.filter(branch_id=self.branch_id)
+        
+        # Group by expense type
+        expense_types = {}
+        total = Decimal('0.00')
+        
+        for expense in expenses_query.select_related('category'):
+            expense_type = expense.expense_type
+            amount = Decimal(str(expense.amount))
+            
+            if expense_type not in expense_types:
+                expense_types[expense_type] = {
+                    'name': expense.get_expense_type_display(),
+                    'amount': Decimal('0.00'),
+                    'items': []
+                }
+            
+            expense_types[expense_type]['amount'] += amount
+            expense_types[expense_type]['items'].append({
+                'expense_number': expense.expense_number,
+                'date': expense.date.isoformat(),
+                'description': expense.description or expense.category.name,
+                'amount': float(amount),
+                'vendor': expense.vendor_supplier
+            })
+            total += amount
+        
+        # Convert to list format
+        expenses_list = []
+        for exp_type, data in sorted(expense_types.items()):
+            expenses_list.append({
+                'type': exp_type,
+                'name': data['name'],
+                'amount': float(data['amount']),
+                'items': data['items']
+            })
+        
+        return {
+            'total': total,
+            'categories': expenses_list,
+            'breakdown': {
+                'shipping': float(expense_types.get('shipping', {}).get('amount', Decimal('0.00'))),
+                'warehouse': float(expense_types.get('warehouse', {}).get('amount', Decimal('0.00'))),
+                'utilities': float(expense_types.get('utilities', {}).get('amount', Decimal('0.00'))),
+                'rent': float(expense_types.get('rent', {}).get('amount', Decimal('0.00'))),
+                'salaries': float(expense_types.get('salaries', {}).get('amount', Decimal('0.00'))),
+                'marketing': float(expense_types.get('marketing', {}).get('amount', Decimal('0.00'))),
+                'other_operating': float(sum(
+                    float(data['amount']) for exp_type, data in expense_types.items()
+                    if exp_type not in ['shipping', 'warehouse', 'utilities', 'rent', 'salaries', 'marketing']
+                ))
+            }
+        }
+    
+    def _calculate_other_expenses(self) -> Dict:
+        """Calculate other non-operating expenses."""
+        # This includes expenses marked as 'other', depreciation, etc.
+        expenses_query = Expense.objects.filter(
+            tenant=self.tenant,
+            date__gte=self.start_date,
+            date__lte=self.end_date,
+            expense_type__in=['other', 'depreciation']
+        )
+        
+        if self.branch_id:
+            expenses_query = expenses_query.filter(branch_id=self.branch_id)
+        
+        total_result = expenses_query.aggregate(
+            total=Sum('amount')
+        )
+        total = Decimal(str(total_result['total'] or 0))
+        
+        depreciation_result = expenses_query.filter(expense_type='depreciation').aggregate(
+            total=Sum('amount')
+        )
+        depreciation = Decimal(str(depreciation_result['total'] or 0))
+        
+        other_result = expenses_query.filter(expense_type='other').aggregate(
+            total=Sum('amount')
+        )
+        other = Decimal(str(other_result['total'] or 0))
+        
+        return {
+            'total': total,
+            'breakdown': {
+                'depreciation': float(depreciation),
+                'other': float(other)
+            }
+        }
+    
+    def _calculate_taxes(self) -> Dict:
+        """Calculate tax expenses (ZIMRA, etc.)."""
+        taxes_query = TaxTransaction.objects.filter(
+            tenant=self.tenant,
+            date__gte=self.start_date,
+            date__lte=self.end_date
+        )
+        
+        if self.branch_id:
+            taxes_query = taxes_query.filter(branch_id=self.branch_id)
+        
+        # Group by tax type
+        tax_types = {}
+        total = Decimal('0.00')
+        
+        for tax in taxes_query:
+            tax_type = tax.tax_type
+            amount = Decimal(str(tax.amount))
+            
+            if tax_type not in tax_types:
+                tax_types[tax_type] = {
+                    'name': tax.get_tax_type_display(),
+                    'amount': Decimal('0.00'),
+                    'items': []
+                }
+            
+            tax_types[tax_type]['amount'] += amount
+            tax_types[tax_type]['items'].append({
+                'tax_number': tax.tax_number,
+                'date': tax.date.isoformat(),
+                'amount': float(amount),
+                'reference': tax.reference_number,
+                'status': tax.status
+            })
+            total += amount
+        
+        # Convert to list
+        taxes_list = []
+        for tax_type, data in sorted(tax_types.items()):
+            taxes_list.append({
+                'type': tax_type,
+                'name': data['name'],
+                'amount': float(data['amount']),
+                'items': data['items']
+            })
+        
+        return {
+            'total': total,
+            'categories': taxes_list,
+            'breakdown': {
+                'vat': float(tax_types.get('vat', {}).get('amount', Decimal('0.00'))),
+                'income_tax': float(tax_types.get('income_tax', {}).get('amount', Decimal('0.00'))),
+                'paye': float(tax_types.get('paye', {}).get('amount', Decimal('0.00'))),
+                'aids_levy': float(tax_types.get('aids_levy', {}).get('amount', Decimal('0.00'))),
+                'nssa': float(tax_types.get('nssa', {}).get('amount', Decimal('0.00'))),
+                'zimdef': float(tax_types.get('zimdef', {}).get('amount', Decimal('0.00'))),
+                'other_taxes': float(sum(
+                    float(data['amount']) for tax_type, data in tax_types.items()
+                    if tax_type not in ['vat', 'income_tax', 'paye', 'aids_levy', 'nssa', 'zimdef']
+                ))
+            }
+        }
+    
+    def _calculate_other_income(self) -> Dict:
+        """Calculate other income (non-sales revenue)."""
+        # For now, return zero. Can be extended for interest income, etc.
+        return {
+            'total': Decimal('0.00'),
+            'breakdown': {}
+        }
+

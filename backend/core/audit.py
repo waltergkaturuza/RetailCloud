@@ -116,3 +116,4 @@ class AuditLogMixin:
             ip = request.META.get('REMOTE_ADDR')
         return ip
 
+

@@ -25,14 +25,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(false);
     } catch (error: any) {
       console.error('Failed to refresh user:', error);
-      // Don't logout on 401 if user is not authenticated yet
-      if (error.response?.status !== 401) {
+      // On 401, token is expired/invalid - logout
+      if (error.response?.status === 401) {
         authService.logout();
+        setUser(null);
+      } else {
+        // Other errors - still clear user but don't force logout
+        setUser(null);
       }
-      setUser(null);
       setIsLoading(false);
     }
   };
+  
+  // Listen for auth logout events from API interceptor
+  useEffect(() => {
+    const handleAuthLogout = () => {
+      setUser(null);
+      authService.logout();
+    };
+    
+    window.addEventListener('auth:logout', handleAuthLogout);
+    return () => {
+      window.removeEventListener('auth:logout', handleAuthLogout);
+    };
+  }, []);
 
   useEffect(() => {
     const checkAuth = async () => {

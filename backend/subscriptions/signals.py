@@ -21,3 +21,4 @@ def handle_payment_status_change(sender, instance, created, **kwargs):
             logger = logging.getLogger(__name__)
             logger.error(f"Failed to create payment receipt: {str(e)}")
 
+

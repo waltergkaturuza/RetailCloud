@@ -12,3 +12,4 @@ class CoreConfig(AppConfig):
         """Import signals when app is ready."""
         import core.signals  # noqa
 
+

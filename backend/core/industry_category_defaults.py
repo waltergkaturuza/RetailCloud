@@ -164,3 +164,4 @@ def get_all_default_categories() -> Dict[str, List[Dict[str, str]]]:
     """Get all default categories for all industries."""
     return INDUSTRY_DEFAULT_CATEGORIES
 
+

@@ -28,3 +28,4 @@ def tenant_filtered_manager():
     """Factory function to create tenant-aware managers."""
     return TenantManager.from_queryset(TenantQuerySet)()
 
+

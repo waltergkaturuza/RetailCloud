@@ -37,8 +37,12 @@ export default function Suppliers() {
     queryFn: async () => {
       const params: any = {}
       if (searchQuery) params.search = searchQuery
-      if (filters.is_active !== undefined) params.is_active = filters.is_active === 'true'
-      if (filters.payment_terms) params.payment_terms = filters.payment_terms
+      if (filters.is_active !== undefined && filters.is_active !== '') {
+        params.is_active = filters.is_active === 'true'
+      }
+      if (filters.payment_terms && filters.payment_terms !== '') {
+        params.payment_terms = filters.payment_terms
+      }
       
       const response = await api.get('/suppliers/suppliers/', { params })
       return response.data
@@ -778,4 +782,5 @@ function SupplierDetailsModal({ supplier, onClose }: any) {
     </div>
   )
 }
+
 

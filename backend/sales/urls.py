@@ -7,3 +7,4 @@ urlpatterns = [
     # Sales reports will be handled here
 ]
 
+

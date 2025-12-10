@@ -11,3 +11,4 @@ class SubscriptionsConfig(AppConfig):
     def ready(self):
         import subscriptions.signals  # noqa
 
+

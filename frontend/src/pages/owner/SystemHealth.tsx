@@ -411,12 +411,14 @@ export default function SystemHealth() {
             <p style={{ marginTop: '16px', color: '#7f8c8d' }}>Loading historical data...</p>
           </div>
         ) : chartData && chartData.labels.length > 0 ? (
-          <div style={{ height: '400px' }}>
+          <div style={{ height: '400px', position: 'relative' }}>
             <Line
               data={chartData}
               options={{
                 responsive: true,
-                maintainAspectRatio: false,
+                maintainAspectRatio: true,
+                aspectRatio: 2,
+                devicePixelRatio: 1,
                 plugins: {
                   legend: {
                     display: false,

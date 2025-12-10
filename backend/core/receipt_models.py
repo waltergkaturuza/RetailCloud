@@ -98,3 +98,4 @@ class ReceiptPrintLog(models.Model):
     def __str__(self):
         return f"Receipt print: {self.sale.invoice_number} ({self.print_type})"
 
+

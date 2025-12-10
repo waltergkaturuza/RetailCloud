@@ -33,3 +33,4 @@ class CategoryReportTemplateAdmin(admin.ModelAdmin):
     list_filter = ['category', 'report_type', 'is_default', 'is_active']
     search_fields = ['name', 'category__name']
 
+

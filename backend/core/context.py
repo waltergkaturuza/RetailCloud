@@ -21,3 +21,4 @@ def clear_current_tenant():
     if hasattr(_context, 'tenant'):
         delattr(_context, 'tenant')
 
+

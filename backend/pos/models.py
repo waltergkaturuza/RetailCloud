@@ -12,6 +12,7 @@ from customers.models import Customer
 from .till_models import TillFloat, CashTransaction, SuspendedSale, DayEndReport
 # Import promotion models
 from .promotion_models import Promotion, PromotionUsage, PriceOverride
+# Note: Return models are imported in __init__.py for easier access
 
 
 class Sale(models.Model):

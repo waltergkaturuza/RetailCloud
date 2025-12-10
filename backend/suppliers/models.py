@@ -81,3 +81,4 @@ class SupplierTransaction(models.Model):
     def __str__(self):
         return f"{self.supplier.name} - {self.transaction_type}: {self.amount}"
 
+

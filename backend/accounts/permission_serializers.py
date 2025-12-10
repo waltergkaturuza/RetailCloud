@@ -59,3 +59,4 @@ class RoleTemplateSerializer(serializers.Serializer):
         help_text="Dictionary mapping modules to permission lists: {'inventory': ['view', 'create', 'update'], ...}"
     )
 
+

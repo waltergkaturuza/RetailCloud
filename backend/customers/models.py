@@ -107,3 +107,4 @@ class CustomerTransaction(models.Model):
     def __str__(self):
         return f"{self.customer.full_name} - {self.transaction_type}: {self.amount}"
 
+

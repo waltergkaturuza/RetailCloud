@@ -55,3 +55,4 @@ class ErrorLogAdmin(admin.ModelAdmin):
         queryset.update(resolved=True, resolved_at=timezone.now())
     mark_resolved.short_description = "Mark selected errors as resolved"
 
+

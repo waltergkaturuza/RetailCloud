@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 from django.utils import timezone
 from .receipt_models import ReceiptTemplate, ReceiptPrintLog
 from .receipt_serializers import ReceiptTemplateSerializer, ReceiptPrintLogSerializer
+from core.utils import get_tenant_from_request
 
 
 class ReceiptTemplateViewSet(viewsets.ModelViewSet):
@@ -16,9 +17,12 @@ class ReceiptTemplateViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Filter by tenant."""
+        tenant = get_tenant_from_request(self.request)
         queryset = ReceiptTemplate.objects.all()
-        if hasattr(self.request, 'tenant') and self.request.tenant:
-            queryset = queryset.filter(tenant=self.request.tenant)
+        if tenant:
+            queryset = queryset.filter(tenant=tenant)
+        else:
+            queryset = queryset.none()
         
         # Filter by branch if provided
         branch_id = self.request.query_params.get('branch')
@@ -38,15 +42,26 @@ class ReceiptTemplateViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         """Create template with tenant."""
-        serializer.save(tenant=self.request.tenant)
+        tenant = get_tenant_from_request(self.request)
+        if not tenant:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError("Tenant context not found.")
+        serializer.save(tenant=tenant)
     
     @action(detail=False, methods=['get'])
     def default(self, request):
         """Get default receipt template for tenant/branch."""
+        tenant = get_tenant_from_request(request)
+        if not tenant:
+            return Response(
+                {'error': 'Tenant context not found.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
         branch_id = request.query_params.get('branch')
         
         template = ReceiptTemplate.objects.filter(
-            tenant=request.tenant,
+            tenant=tenant,
             is_default=True,
             is_active=True
         )
@@ -61,7 +76,7 @@ class ReceiptTemplateViewSet(viewsets.ModelViewSet):
         if not template:
             # Create default template if none exists
             template = ReceiptTemplate.objects.create(
-                tenant=request.tenant,
+                tenant=tenant,
                 name='Default Receipt',
                 is_default=True,
                 is_active=True
@@ -76,9 +91,12 @@ class ReceiptPrintLogViewSet(viewsets.ReadOnlyModelViewSet):
     
     def get_queryset(self):
         """Filter by tenant."""
+        tenant = get_tenant_from_request(self.request)
         queryset = ReceiptPrintLog.objects.all()
-        if hasattr(self.request, 'tenant') and self.request.tenant:
-            queryset = queryset.filter(tenant=self.request.tenant)
+        if tenant:
+            queryset = queryset.filter(tenant=tenant)
+        else:
+            queryset = queryset.none()
         
         # Filter by sale if provided
         sale_id = self.request.query_params.get('sale')
@@ -93,6 +111,13 @@ class LogReceiptPrintView(APIView):
     
     def post(self, request):
         """Log receipt print."""
+        tenant = get_tenant_from_request(request)
+        if not tenant:
+            return Response(
+                {'error': 'Tenant context not found.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
         sale_id = request.data.get('sale_id')
         print_type = request.data.get('print_type', 'original')
         
@@ -104,7 +129,7 @@ class LogReceiptPrintView(APIView):
         
         from pos.models import Sale
         try:
-            sale = Sale.objects.get(id=sale_id, tenant=request.tenant)
+            sale = Sale.objects.get(id=sale_id, tenant=tenant)
         except Sale.DoesNotExist:
             return Response(
                 {'error': 'Sale not found'},
@@ -115,7 +140,7 @@ class LogReceiptPrintView(APIView):
         ip_address = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR'))
         
         log = ReceiptPrintLog.objects.create(
-            tenant=request.tenant,
+            tenant=tenant,
             sale=sale,
             print_type=print_type,
             printed_by=request.user,
@@ -123,4 +148,5 @@ class LogReceiptPrintView(APIView):
         )
         
         return Response(ReceiptPrintLogSerializer(log).data)
+
 

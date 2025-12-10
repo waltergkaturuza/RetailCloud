@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import api from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import BranchSelector from '../components/BranchSelector'
+import RecommendationSummary from '../components/RecommendationSummary'
+import '../styles/dashboard.css'
 import { Line, Bar } from 'react-chartjs-2'
 import {
   Chart as ChartJS,
@@ -41,9 +43,23 @@ interface DashboardStats {
 
 export default function Dashboard() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [selectedBranch, setSelectedBranch] = useState<number | 'all'>('all')
   const today = new Date().toISOString().split('T')[0]
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+  
+  // Helper functions to navigate and open forms
+  const handleAddProduct = () => {
+    navigate('/products?action=add')
+  }
+  
+  const handleAddCustomer = () => {
+    navigate('/customers?action=add')
+  }
+  
+  const handleCreatePO = () => {
+    navigate('/purchases?action=create-po')
+  }
 
   const { data: todayStats, isLoading: todayLoading } = useQuery({
     queryKey: ['dashboard-today-stats', selectedBranch],
@@ -110,13 +126,25 @@ export default function Dashboard() {
 
   const weeklyChartData = {
     labels: weekDaily?.map((d: any) => {
-      const date = new Date(d.date__date || d.date)
-      return date.toLocaleDateString('en-US', { weekday: 'short' })
+      try {
+        const dateStr = d.date__date || d.date || ''
+        if (!dateStr) return 'N/A'
+        const date = new Date(dateStr)
+        // Check if date is valid
+        if (isNaN(date.getTime())) return 'N/A'
+        return date.toLocaleDateString('en-US', { weekday: 'short' })
+      } catch (e) {
+        return 'N/A'
+      }
     }) || [],
     datasets: [
       {
         label: 'Daily Sales',
-        data: weekDaily?.map((d: any) => parseFloat(d.total || 0)) || [],
+        data: weekDaily?.map((d: any) => {
+          const value = d.total || 0
+          const parsed = typeof value === 'string' ? parseFloat(value) : value
+          return isNaN(parsed) ? 0 : parsed
+        }) || [],
         borderColor: '#3498db',
         backgroundColor: 'rgba(52, 152, 219, 0.1)',
         borderWidth: 2,
@@ -128,7 +156,7 @@ export default function Dashboard() {
 
   return (
     <div>
-      <div style={{ marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+      <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h1 style={{ margin: 0, fontSize: '28px', color: '#2c3e50', fontWeight: '600' }}>
             Dashboard
@@ -153,49 +181,110 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Today's Stats */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-        gap: '16px',
-        marginBottom: '24px'
-      }}>
-        <StatCard
-          title="Today's Sales"
-          value={todayStats?.total_amount ? `$${parseFloat(todayStats.total_amount.toString()).toFixed(2)}` : '$0.00'}
-          subtitle={`${todayStats?.total_sales || 0} transactions`}
-          icon="💰"
-          loading={todayLoading}
-          color="#3498db"
-        />
-        <StatCard
-          title="This Week"
-          value={weekStats?.total_amount ? `$${parseFloat(weekStats.total_amount.toString()).toFixed(2)}` : '$0.00'}
-          subtitle={`${weekStats?.total_sales || 0} transactions`}
-          icon="📈"
-          loading={weekLoading}
-          color="#2ecc71"
-        />
-        <StatCard
-          title="Gross Profit"
-          value={profitLoss?.gross_profit ? `$${parseFloat(profitLoss.gross_profit.toString()).toFixed(2)}` : '$0.00'}
-          subtitle={`${profitLoss?.gross_profit_margin || 0}% margin`}
-          icon="💵"
-          loading={plLoading}
-          color="#27ae60"
-        />
-        <StatCard
-          title="Low Stock"
-          value={(inventoryReport?.low_stock || 0).toString()}
-          subtitle={`${inventoryReport?.out_of_stock || 0} out of stock`}
-          icon="⚠️"
-          loading={inventoryLoading}
-          color="#e74c3c"
-        />
+      {/* Main Dashboard Grid - 4 Column Layout (Responsive) */}
+      <div 
+        className="dashboard-grid"
+        style={{ marginBottom: '24px' }}
+      >
+        {/* Column 1: Key Stats (Stacked) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <StatCard
+            title="Today's Sales"
+            value={todayStats?.total_amount ? `$${parseFloat(todayStats.total_amount.toString()).toFixed(2)}` : '$0.00'}
+            subtitle={`${todayStats?.total_sales || 0} transactions`}
+            icon="💰"
+            loading={todayLoading}
+            color="#3498db"
+          />
+          <StatCard
+            title="This Week"
+            value={weekStats?.total_amount ? `$${parseFloat(weekStats.total_amount.toString()).toFixed(2)}` : '$0.00'}
+            subtitle={`${weekStats?.total_sales || 0} transactions`}
+            icon="📈"
+            loading={weekLoading}
+            color="#2ecc71"
+          />
+          <StatCard
+            title="Gross Profit"
+            value={profitLoss?.gross_profit ? `$${parseFloat(profitLoss.gross_profit.toString()).toFixed(2)}` : '$0.00'}
+            subtitle={`${profitLoss?.gross_profit_margin || 0}% margin`}
+            icon="💵"
+            loading={plLoading}
+            color="#27ae60"
+          />
+          <StatCard
+            title="Low Stock"
+            value={(inventoryReport?.low_stock || 0).toString()}
+            subtitle={`${inventoryReport?.out_of_stock || 0} out of stock`}
+            icon="⚠️"
+            loading={inventoryLoading}
+            color="#e74c3c"
+          />
+        </div>
+
+        {/* Column 2 & 3: Recommendations (Spans 2 columns) */}
+        <div className="recommendations-column" style={{ display: 'flex', flexDirection: 'column' }}>
+          <RecommendationSummary maxDisplay={4} showSummary={false} collapsed={false} />
+        </div>
+
+        {/* Column 4: Quick Actions */}
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <Card style={{ marginBottom: '12px', padding: '14px' }}>
+            <h3 style={{ marginTop: 0, marginBottom: '12px', fontSize: '14px', fontWeight: '600' }}>
+              Quick Actions
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <Button as={Link} to="/pos" size="sm" style={{ width: '100%', justifyContent: 'center' }}>
+                💳 Open POS
+              </Button>
+              <Button variant="secondary" onClick={handleAddProduct} size="sm" style={{ width: '100%', justifyContent: 'center' }}>
+                📦 Add Product
+              </Button>
+              <Button variant="secondary" onClick={handleAddCustomer} size="sm" style={{ width: '100%', justifyContent: 'center' }}>
+                👥 Add Customer
+              </Button>
+              <Button variant="secondary" onClick={handleCreatePO} size="sm" style={{ width: '100%', justifyContent: 'center' }}>
+                📝 Create PO
+              </Button>
+              <Button variant="secondary" as={Link} to="/inventory" size="sm" style={{ width: '100%', justifyContent: 'center' }}>
+                📋 Stock Management
+              </Button>
+            </div>
+          </Card>
+          
+          {/* Quick Stats */}
+          <Card style={{ padding: '14px' }}>
+            <h3 style={{ marginTop: 0, marginBottom: '12px', fontSize: '14px', fontWeight: '600' }}>
+              Quick Stats
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <QuickStatItem
+                label="Today's Tax"
+                value={todayStats?.total_tax ? `$${parseFloat(todayStats.total_tax.toString()).toFixed(2)}` : '$0.00'}
+              />
+              <QuickStatItem
+                label="Today's Discounts"
+                value={todayStats?.total_discount ? `$${parseFloat(todayStats.total_discount.toString()).toFixed(2)}` : '$0.00'}
+              />
+              <QuickStatItem
+                label="Avg Sale (Today)"
+                value={todayStats?.total_sales && todayStats.total_sales > 0 
+                  ? `$${(parseFloat(todayStats.total_amount.toString()) / todayStats.total_sales).toFixed(2)}`
+                  : '$0.00'}
+              />
+              <QuickStatItem
+                label="Avg Sale (Week)"
+                value={weekStats?.total_sales && weekStats.total_sales > 0
+                  ? `$${(parseFloat(weekStats.total_amount.toString()) / weekStats.total_sales).toFixed(2)}`
+                  : '$0.00'}
+              />
+            </div>
+          </Card>
+        </div>
       </div>
 
-      {/* Charts and Tables Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', marginBottom: '24px' }}>
+      {/* Second Row: Charts and Recent Sales - 2 Columns */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px' }}>
         {/* Weekly Sales Chart */}
         <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -211,29 +300,32 @@ export default function Dashboard() {
               <div className="spinner" />
             </div>
           ) : weekDaily && weekDaily.length > 0 ? (
-            <Line 
-              data={weeklyChartData} 
-              options={{
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                  legend: {
-                    display: false,
+            <div style={{ height: '300px', position: 'relative' }}>
+              <Line 
+                data={weeklyChartData} 
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: true,
+                  aspectRatio: 2,
+                  devicePixelRatio: 1,
+                  plugins: {
+                    legend: {
+                      display: false,
+                    },
                   },
-                },
-                scales: {
-                  y: {
-                    beginAtZero: true,
-                    ticks: {
-                      callback: function(value) {
-                        return '$' + value
+                  scales: {
+                    y: {
+                      beginAtZero: true,
+                      ticks: {
+                        callback: function(value) {
+                          return '$' + value
+                        }
                       }
                     }
                   }
-                }
-              }}
-              height={250}
-            />
+                }}
+              />
+            </div>
           ) : (
             <div style={{ padding: '60px', textAlign: 'center', color: '#7f8c8d' }}>
               No sales data for this week
@@ -241,38 +333,6 @@ export default function Dashboard() {
           )}
         </Card>
 
-        {/* Quick Stats */}
-        <Card>
-          <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '18px', fontWeight: '600' }}>
-            Quick Stats
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <QuickStatItem
-              label="Today's Tax"
-              value={todayStats?.total_tax ? `$${parseFloat(todayStats.total_tax.toString()).toFixed(2)}` : '$0.00'}
-            />
-            <QuickStatItem
-              label="Today's Discounts"
-              value={todayStats?.total_discount ? `$${parseFloat(todayStats.total_discount.toString()).toFixed(2)}` : '$0.00'}
-            />
-            <QuickStatItem
-              label="Avg Sale (Today)"
-              value={todayStats?.total_sales && todayStats.total_sales > 0 
-                ? `$${(parseFloat(todayStats.total_amount.toString()) / todayStats.total_sales).toFixed(2)}`
-                : '$0.00'}
-            />
-            <QuickStatItem
-              label="Avg Sale (Week)"
-              value={weekStats?.total_sales && weekStats.total_sales > 0
-                ? `$${(parseFloat(weekStats.total_amount.toString()) / weekStats.total_sales).toFixed(2)}`
-                : '$0.00'}
-            />
-          </div>
-        </Card>
-      </div>
-
-      {/* Recent Sales and Quick Actions */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
         {/* Recent Sales */}
         <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -288,41 +348,26 @@ export default function Dashboard() {
               <div className="spinner" />
             </div>
           ) : recentSales && recentSales.length > 0 ? (
-            <div style={{ overflowX: 'auto' }}>
+            <div style={{ overflowY: 'auto', maxHeight: '300px' }}>
               <table className="table">
-                <thead>
+                <thead style={{ position: 'sticky', top: 0, background: 'white', zIndex: 10 }}>
                   <tr>
-                    <th className="table-header">Invoice</th>
-                    <th className="table-header">Customer</th>
-                    <th className="table-header" style={{ textAlign: 'right' }}>Amount</th>
-                    <th className="table-header">Payment</th>
-                    <th className="table-header">Time</th>
+                    <th className="table-header" style={{ fontSize: '12px', padding: '8px' }}>Invoice</th>
+                    <th className="table-header" style={{ fontSize: '12px', padding: '8px' }}>Amount</th>
+                    <th className="table-header" style={{ fontSize: '12px', padding: '8px' }}>Time</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {recentSales.slice(0, 5).map((sale: any) => (
+                  {recentSales.slice(0, 8).map((sale: any) => (
                     <tr key={sale.id} style={{ borderBottom: '1px solid #ecf0f1' }}>
-                      <td style={{ padding: '12px', fontWeight: '600', color: '#3498db', fontFamily: 'monospace', fontSize: '13px' }}>
+                      <td style={{ padding: '10px', fontWeight: '600', color: '#3498db', fontFamily: 'monospace', fontSize: '12px' }}>
                         {sale.invoice_number}
                       </td>
-                      <td style={{ padding: '12px' }}>{sale.customer_name || 'Walk-in'}</td>
-                      <td style={{ padding: '12px', textAlign: 'right', fontWeight: '600', color: '#2ecc71' }}>
+                      <td style={{ padding: '10px', textAlign: 'right', fontWeight: '600', color: '#2ecc71', fontSize: '13px' }}>
                         ${parseFloat(sale.total_amount || 0).toFixed(2)}
                       </td>
-                      <td style={{ padding: '12px' }}>
-                        <span style={{
-                          padding: '4px 8px',
-                          borderRadius: '4px',
-                          fontSize: '11px',
-                          textTransform: 'uppercase',
-                          background: '#e3f2fd',
-                          color: '#1976d2'
-                        }}>
-                          {sale.payment_method}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px', color: '#7f8c8d', fontSize: '13px' }}>
-                        {new Date(sale.date).toLocaleTimeString()}
+                      <td style={{ padding: '10px', color: '#7f8c8d', fontSize: '12px' }}>
+                        {new Date(sale.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                       </td>
                     </tr>
                   ))}
@@ -332,36 +377,9 @@ export default function Dashboard() {
           ) : (
             <div className="text-center" style={{ padding: '40px', color: '#7f8c8d' }}>
               <div style={{ fontSize: '48px', marginBottom: '12px' }}>📊</div>
-              <p>No recent sales</p>
+              <p style={{ fontSize: '14px' }}>No recent sales</p>
             </div>
           )}
-        </Card>
-
-        {/* Quick Actions */}
-        <Card>
-          <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '18px', fontWeight: '600' }}>
-            Quick Actions
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <Button as={Link} to="/pos" style={{ width: '100%', justifyContent: 'center' }}>
-              💳 Open POS
-            </Button>
-            <Button variant="secondary" as={Link} to="/products" style={{ width: '100%', justifyContent: 'center' }}>
-              📦 Add Product
-            </Button>
-            <Button variant="secondary" as={Link} to="/customers" style={{ width: '100%', justifyContent: 'center' }}>
-              👥 Add Customer
-            </Button>
-            <Button variant="secondary" as={Link} to="/purchases" style={{ width: '100%', justifyContent: 'center' }}>
-              📝 Create Purchase Order
-            </Button>
-            <Button variant="secondary" as={Link} to="/reports" style={{ width: '100%', justifyContent: 'center' }}>
-              📊 View Reports
-            </Button>
-            <Button variant="secondary" as={Link} to="/inventory" style={{ width: '100%', justifyContent: 'center' }}>
-              📋 Stock Management
-            </Button>
-          </div>
         </Card>
       </div>
     </div>
@@ -379,18 +397,18 @@ interface StatCardProps {
 
 function StatCard({ title, value, subtitle, icon, loading, color }: StatCardProps) {
   return (
-    <Card>
+    <Card style={{ padding: '12px 16px' }}>
       <div style={{
-        borderLeft: `4px solid ${color}`,
-        paddingLeft: '16px',
-        marginLeft: '-24px'
+        borderLeft: `3px solid ${color}`,
+        paddingLeft: '12px',
+        marginLeft: '-16px'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
           <div style={{ flex: 1 }}>
             <div style={{ 
-              fontSize: '12px', 
+              fontSize: '10px', 
               color: '#7f8c8d', 
-              marginBottom: '8px',
+              marginBottom: '6px',
               fontWeight: '500',
               textTransform: 'uppercase',
               letterSpacing: '0.5px'
@@ -398,25 +416,25 @@ function StatCard({ title, value, subtitle, icon, loading, color }: StatCardProp
               {title}
             </div>
             <div style={{ 
-              fontSize: '28px', 
+              fontSize: '22px', 
               fontWeight: '700', 
               color: '#2c3e50', 
-              marginBottom: '8px',
+              marginBottom: '4px',
               lineHeight: '1.2'
             }}>
               {loading ? (
-                <div className="spinner" style={{ width: '24px', height: '24px', margin: '8px 0' }} />
+                <div className="spinner" style={{ width: '20px', height: '20px', margin: '4px 0' }} />
               ) : (
                 value
               )}
             </div>
-            <div style={{ fontSize: '13px', color: '#95a5a6' }}>{subtitle}</div>
+            <div style={{ fontSize: '11px', color: '#95a5a6' }}>{subtitle}</div>
           </div>
           <div style={{ 
-            fontSize: '48px',
+            fontSize: '36px',
             opacity: 0.2,
             lineHeight: '1',
-            marginLeft: '16px'
+            marginLeft: '12px'
           }}>
             {icon}
           </div>
@@ -432,12 +450,12 @@ function QuickStatItem({ label, value }: { label: string; value: string }) {
       display: 'flex', 
       justifyContent: 'space-between', 
       alignItems: 'center',
-      padding: '12px',
+      padding: '10px',
       background: '#f8f9fa',
       borderRadius: '6px'
     }}>
-      <span style={{ fontSize: '14px', color: '#7f8c8d' }}>{label}</span>
-      <span style={{ fontSize: '16px', fontWeight: '600', color: '#2c3e50' }}>{value}</span>
+      <span style={{ fontSize: '12px', color: '#7f8c8d' }}>{label}</span>
+      <span style={{ fontSize: '14px', fontWeight: '600', color: '#2c3e50' }}>{value}</span>
     </div>
   )
 }

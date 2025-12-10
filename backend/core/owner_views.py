@@ -889,12 +889,12 @@ class AnalyticsView(views.APIView):
         suspended = Tenant.objects.filter(subscription_status='suspended').count()
         
         # Subscription plan distribution
-        plan_dist = Tenant.objects.values('subscription_plan__name').annotate(
+        plan_dist = Tenant.objects.values('subscription__package__name').annotate(
             count=Count('id')
         )
         
         plan_distribution = {
-            item['subscription_plan__name'] or 'No Plan': item['count']
+            (item.get('subscription__package__name') or 'No Plan'): item['count']
             for item in plan_dist
         }
         

@@ -13,3 +13,4 @@ urlpatterns = [
     path('tenant/category/', TenantCategoryView.as_view(), name='tenant-category'),
 ]
 
+

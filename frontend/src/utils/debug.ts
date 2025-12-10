@@ -13,3 +13,4 @@ export const logError = (error: Error, context?: string) => {
   // In production, you might want to send this to an error tracking service
 };
 
+

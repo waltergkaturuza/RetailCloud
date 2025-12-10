@@ -95,3 +95,4 @@ class ApplyPromotionSerializer(serializers.Serializer):
         help_text="List of cart items with product_id, quantity, unit_price"
     )
 
+

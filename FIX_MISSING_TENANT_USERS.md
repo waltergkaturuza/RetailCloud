@@ -47,3 +47,4 @@ if user_role == 'tenant_admin':
 - New users created by tenant admin are automatically assigned to the admin's tenant
 - Users created through the API will always get a tenant (if creator has one)
 
+

@@ -36,6 +36,12 @@ class SaleSerializer(serializers.ModelSerializer):
     customer_name = serializers.CharField(source='customer.full_name', read_only=True)
     cashier_name = serializers.CharField(source='cashier.get_full_name', read_only=True)
     branch_name = serializers.CharField(source='branch.name', read_only=True)
+    tenant_company_name = serializers.CharField(source='tenant.company_name', read_only=True)
+    tenant_address = serializers.CharField(source='tenant.address', read_only=True)
+    tenant_phone = serializers.CharField(source='tenant.phone', read_only=True)
+    tenant_email = serializers.EmailField(source='tenant.email', read_only=True)
+    tenant_city = serializers.CharField(source='tenant.city', read_only=True)
+    tenant_country = serializers.CharField(source='tenant.country', read_only=True)
     
     class Meta:
         model = Sale
@@ -44,7 +50,9 @@ class SaleSerializer(serializers.ModelSerializer):
             'date', 'subtotal', 'tax_amount', 'discount_amount', 'total_amount',
             'amount_paid', 'change_amount', 'payment_method', 'is_paid', 'paid_at',
             'status', 'cashier', 'cashier_name', 'supervisor', 'notes', 'void_reason',
-            'items', 'payment_splits', 'created_at', 'updated_at'
+            'items', 'payment_splits', 'created_at', 'updated_at',
+            'tenant_company_name', 'tenant_address', 'tenant_phone', 'tenant_email',
+            'tenant_city', 'tenant_country', 'currency', 'exchange_rate'
         ]
         read_only_fields = ['invoice_number', 'date', 'created_at', 'updated_at']
 
@@ -65,4 +73,5 @@ class SaleCreateSerializer(serializers.Serializer):
         child=serializers.DictField(),
         required=False
     )
+
 

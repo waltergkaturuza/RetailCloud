@@ -36,3 +36,4 @@ class GoodsReceivedNoteAdmin(admin.ModelAdmin):
     inlines = [GRNItemInline]
     date_hierarchy = 'date'
 
+

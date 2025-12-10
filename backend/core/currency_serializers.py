@@ -66,3 +66,4 @@ class CurrentExchangeRateSerializer(serializers.Serializer):
     effective_date = serializers.DateField()
     is_locked = serializers.BooleanField()
 
+

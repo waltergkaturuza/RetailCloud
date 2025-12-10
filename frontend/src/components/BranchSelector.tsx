@@ -165,8 +165,11 @@ export default function BranchSelector({
     )
   }
 
+  // Extract container styles if needed, or apply to select
+  const containerStyle = label ? {} : style
+  
   return (
-    <div style={style} className={className}>
+    <div style={containerStyle} className={className}>
       {label && (
         <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontSize: '13px' }}>
           {label}
@@ -179,8 +182,12 @@ export default function BranchSelector({
           onBranchChange(value === 'all' ? 'all' : parseInt(value))
         }}
         className="input"
-        style={{ width: '100%' }}
+        style={{ 
+          width: '100%',
+          ...(label ? {} : style)
+        }}
       >
+        {!showAll && <option value="">Select branch...</option>}
         {showAll && <option value="all">All Branches</option>}
         {filteredBranches.map((branch: Branch) => (
           <option key={branch.id} value={branch.id}>
@@ -191,4 +198,5 @@ export default function BranchSelector({
     </div>
   )
 }
+
 

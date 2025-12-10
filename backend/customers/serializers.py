@@ -3,6 +3,7 @@ Serializers for customers app.
 """
 from rest_framework import serializers
 from .models import Customer, CustomerTransaction
+from core.utils import get_tenant_from_request
 
 
 class CustomerSerializer(serializers.ModelSerializer):
@@ -26,6 +27,25 @@ class CustomerSerializer(serializers.ModelSerializer):
             'loyalty_points_balance', 'credit_balance', 'total_purchases',
             'total_visits', 'last_purchase_date', 'created_at', 'updated_at'
         ]
+    
+    def create(self, validated_data):
+        """Create customer with tenant from context."""
+        # Get tenant from context (set by perform_create or request)
+        request = self.context.get('request')
+        if request:
+            tenant = getattr(request, 'tenant', None)
+            if not tenant:
+                # Fallback to user's tenant
+                tenant = get_tenant_from_request(request)
+            
+            if tenant:
+                validated_data['tenant'] = tenant
+            else:
+                raise serializers.ValidationError("Tenant is required for customer creation.")
+        else:
+            raise serializers.ValidationError("Request context is required for customer creation.")
+        
+        return super().create(validated_data)
 
 
 class CustomerTransactionSerializer(serializers.ModelSerializer):
@@ -40,4 +60,5 @@ class CustomerTransactionSerializer(serializers.ModelSerializer):
             'reference_type', 'reference_id', 'notes', 'created_at'
         ]
         read_only_fields = ['created_at']
+
 

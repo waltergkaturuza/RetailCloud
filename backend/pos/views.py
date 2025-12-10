@@ -8,10 +8,12 @@ from django.db import transaction
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
+from decimal import Decimal
 from .models import Sale, SaleItem, PaymentSplit
 from .serializers import SaleSerializer, SaleCreateSerializer
 from inventory.models import Product, ProductVariant, StockLevel, StockMovement
 from customers.models import Customer
+from core.utils import get_tenant_from_request
 
 
 class SaleViewSet(viewsets.ModelViewSet):
@@ -25,9 +27,12 @@ class SaleViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Filter by tenant."""
-        queryset = Sale.objects.all()
-        if hasattr(self.request, 'tenant') and self.request.tenant:
-            queryset = queryset.filter(tenant=self.request.tenant)
+        tenant = get_tenant_from_request(self.request)
+        queryset = Sale.objects.select_related('tenant', 'branch', 'customer', 'cashier').all()
+        if tenant:
+            queryset = queryset.filter(tenant=tenant)
+        else:
+            queryset = queryset.none()
         return queryset
     
     def get_serializer_class(self):
@@ -38,6 +43,13 @@ class SaleViewSet(viewsets.ModelViewSet):
     @transaction.atomic
     def create(self, request):
         """Create a new sale."""
+        tenant = get_tenant_from_request(request)
+        if not tenant:
+            return Response(
+                {'error': 'Tenant context not found. Please ensure you are authenticated and associated with a tenant.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
         serializer = SaleCreateSerializer(data=request.data)
         if serializer.is_valid():
             data = serializer.validated_data
@@ -45,7 +57,7 @@ class SaleViewSet(viewsets.ModelViewSet):
             # Get branch
             from core.models import Branch
             try:
-                branch = Branch.objects.get(id=data['branch_id'], tenant=request.tenant)
+                branch = Branch.objects.get(id=data['branch_id'], tenant=tenant)
             except Branch.DoesNotExist:
                 return Response(
                     {'error': 'Branch not found.'},
@@ -56,43 +68,29 @@ class SaleViewSet(viewsets.ModelViewSet):
             customer = None
             if data.get('customer_id'):
                 try:
-                    customer = Customer.objects.get(id=data['customer_id'], tenant=request.tenant)
+                    customer = Customer.objects.get(id=data['customer_id'], tenant=tenant)
                 except Customer.DoesNotExist:
                     return Response(
                         {'error': 'Customer not found.'},
                         status=status.HTTP_404_NOT_FOUND
                     )
             
-            # Calculate totals
-            subtotal = 0
-            tax_amount = 0
-            discount_amount = data.get('discount_amount', 0)
+            # Calculate totals FIRST before creating the sale
+            subtotal = Decimal('0.00')
+            tax_amount = Decimal('0.00')
+            discount_amount = Decimal(str(data.get('discount_amount', 0)))
             
-            # Create sale
-            sale = Sale.objects.create(
-                tenant=request.tenant,
-                branch=branch,
-                customer=customer,
-                cashier=request.user,
-                payment_method=data['payment_method'],
-                amount_paid=data['amount_paid'],
-                discount_amount=discount_amount,
-                notes=data.get('notes', ''),
-                is_paid=True,
-                paid_at=timezone.now()
-            )
-            
-            # Process items
+            # Validate items and calculate totals
             items_data = []
             for item_data in data['items']:
                 product_id = item_data['product_id']
                 variant_id = item_data.get('variant_id')
-                quantity = item_data['quantity']
-                unit_price = item_data['unit_price']
-                item_discount = item_data.get('discount_amount', 0)
+                quantity = Decimal(str(item_data['quantity']))
+                unit_price = Decimal(str(item_data['unit_price']))
+                item_discount = Decimal(str(item_data.get('discount_amount', 0)))
                 
                 try:
-                    product = Product.objects.get(id=product_id, tenant=request.tenant)
+                    product = Product.objects.get(id=product_id, tenant=tenant)
                 except Product.DoesNotExist:
                     transaction.set_rollback(True)
                     return Response(
@@ -109,67 +107,112 @@ class SaleViewSet(viewsets.ModelViewSet):
                         pass
                 
                 # Calculate item total
-                item_subtotal = quantity * unit_price - item_discount
-                item_tax = item_subtotal * (request.tenant.tax_rate / 100) if product.is_taxable else 0
+                item_subtotal = (quantity * unit_price) - item_discount
+                item_tax = item_subtotal * (Decimal(str(tenant.tax_rate)) / Decimal('100.00')) if product.is_taxable else Decimal('0.00')
                 item_total = item_subtotal + item_tax
                 
                 subtotal += item_subtotal
                 tax_amount += item_tax
                 
+                # Store item data for later creation
+                items_data.append({
+                    'product': product,
+                    'variant': variant,
+                    'quantity': quantity,
+                    'unit_price': unit_price,
+                    'item_discount': item_discount,
+                    'item_tax': item_tax,
+                    'item_total': item_total,
+                    'cost_price': variant.cost_price if variant else product.cost_price,
+                    'track_inventory': product.track_inventory,
+                    'allow_negative_stock': product.allow_negative_stock
+                })
+            
+            # Calculate final totals
+            total_amount = subtotal + tax_amount - discount_amount
+            
+            # Ensure total_amount meets minimum requirement (must be >= 0.01)
+            if total_amount < Decimal('0.01'):
+                transaction.set_rollback(True)
+                return Response(
+                    {'error': 'Total amount must be at least 0.01. Please add items to the sale.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            amount_paid = Decimal(str(data.get('amount_paid', 0)))
+            change_amount = max(Decimal('0.00'), amount_paid - total_amount)
+            currency = data.get('currency', 'USD')
+            exchange_rate = data.get('exchange_rate')
+            
+            # Create sale with all totals
+            sale = Sale.objects.create(
+                tenant=tenant,
+                branch=branch,
+                customer=customer,
+                cashier=request.user,
+                payment_method=data.get('payment_method', 'cash'),
+                amount_paid=amount_paid,
+                discount_amount=discount_amount,
+                subtotal=subtotal,
+                tax_amount=tax_amount,
+                total_amount=total_amount,
+                change_amount=change_amount,
+                currency=currency,
+                exchange_rate=Decimal(str(exchange_rate)) if exchange_rate else None,
+                notes=data.get('notes', ''),
+                is_paid=True,
+                paid_at=timezone.now()
+            )
+            
+            # Now create sale items and update stock
+            for item_info in items_data:
                 # Create sale item
                 sale_item = SaleItem.objects.create(
                     sale=sale,
-                    product=product,
-                    variant=variant,
-                    quantity=quantity,
-                    unit_price=unit_price,
-                    discount_amount=item_discount,
-                    tax_amount=item_tax,
-                    total=item_total,
-                    cost_price=variant.cost_price if variant else product.cost_price
+                    product=item_info['product'],
+                    variant=item_info['variant'],
+                    quantity=int(item_info['quantity']),
+                    unit_price=item_info['unit_price'],
+                    discount_amount=item_info['item_discount'],
+                    tax_amount=item_info['item_tax'],
+                    total=item_info['item_total'],
+                    cost_price=item_info['cost_price']
                 )
-                items_data.append(sale_item)
                 
                 # Update stock
-                if product.track_inventory:
+                if item_info['track_inventory']:
                     stock_level, created = StockLevel.objects.get_or_create(
-                        tenant=request.tenant,
+                        tenant=tenant,
                         branch=branch,
-                        product=product
+                        product=item_info['product']
                     )
                     
+                    quantity_int = int(item_info['quantity'])
                     quantity_before = stock_level.quantity
-                    if stock_level.quantity < quantity and not product.allow_negative_stock:
+                    if stock_level.quantity < quantity_int and not item_info['allow_negative_stock']:
                         transaction.set_rollback(True)
                         return Response(
-                            {'error': f'Insufficient stock for {product.name}. Available: {stock_level.quantity}'},
+                            {'error': f'Insufficient stock for {item_info["product"].name}. Available: {stock_level.quantity}'},
                             status=status.HTTP_400_BAD_REQUEST
                         )
                     
-                    stock_level.quantity -= quantity
+                    stock_level.quantity -= quantity_int
                     stock_level.save()
                     
                     # Record stock movement
                     StockMovement.objects.create(
-                        tenant=request.tenant,
+                        tenant=tenant,
                         branch=branch,
-                        product=product,
-                        variant=variant,
+                        product=item_info['product'],
+                        variant=item_info['variant'],
                         movement_type='sale',
-                        quantity=-quantity,
+                        quantity=-quantity_int,
                         quantity_before=quantity_before,
                         quantity_after=stock_level.quantity,
                         reference_type='Sale',
                         reference_id=str(sale.id),
                         user=request.user
                     )
-            
-            # Update sale totals
-            sale.subtotal = subtotal
-            sale.tax_amount = tax_amount
-            sale.total_amount = subtotal + tax_amount - discount_amount
-            sale.change_amount = max(0, sale.amount_paid - sale.total_amount)
-            sale.save()
             
             # Handle payment splits if provided
             if data.get('payment_splits'):
@@ -216,9 +259,16 @@ class SaleViewSet(viewsets.ModelViewSet):
             )
         
         # Verify supervisor
+        tenant = get_tenant_from_request(request)
+        if not tenant:
+            return Response(
+                {'error': 'Tenant context not found.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
         from accounts.models import User
         supervisor = User.objects.filter(
-            tenant=request.tenant,
+            tenant=tenant,
             role__in=['super_admin', 'tenant_admin', 'supervisor'],
             pin=pin
         ).first()
@@ -240,7 +290,7 @@ class SaleViewSet(viewsets.ModelViewSet):
             for item in sale.items.all():
                 if item.product.track_inventory:
                     stock_level, _ = StockLevel.objects.get_or_create(
-                        tenant=request.tenant,
+                        tenant=tenant,
                         branch=sale.branch,
                         product=item.product
                     )
@@ -248,7 +298,7 @@ class SaleViewSet(viewsets.ModelViewSet):
                     stock_level.save()
                     
                     StockMovement.objects.create(
-                        tenant=request.tenant,
+                        tenant=tenant,
                         branch=sale.branch,
                         product=item.product,
                         variant=item.variant,

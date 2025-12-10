@@ -215,3 +215,4 @@ class ErrorHandlingMiddleware:
             # Re-raise for default error handling
             raise
 
+

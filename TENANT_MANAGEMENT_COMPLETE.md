@@ -137,3 +137,4 @@ The Tenant Management page is **fully functional** and ready to use! All core CR
 - Tenant detail view modal
 - More filters (by category, date range)
 
+

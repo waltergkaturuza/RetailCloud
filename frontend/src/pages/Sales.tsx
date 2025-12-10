@@ -48,9 +48,9 @@ export default function Sales() {
         ordering: '-date'
       }
       if (searchQuery) params.search = searchQuery
-      if (filters.status) params.status = filters.status
-      if (filters.payment_method) params.payment_method = filters.payment_method
-      if (filters.customer) params.customer = filters.customer
+      if (filters.status && filters.status !== '') params.status = filters.status
+      if (filters.payment_method && filters.payment_method !== '') params.payment_method = filters.payment_method
+      if (filters.customer && filters.customer !== '') params.customer = filters.customer
       if (dateRange.start) params.date__gte = dateRange.start
       if (dateRange.end) params.date__lte = dateRange.end
       if (selectedBranch !== 'all') params.branch = selectedBranch

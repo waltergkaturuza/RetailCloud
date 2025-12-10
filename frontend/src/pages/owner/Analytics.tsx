@@ -175,7 +175,9 @@ export default function Analytics() {
 
   const chartOptions = {
     responsive: true,
-    maintainAspectRatio: false,
+    maintainAspectRatio: true,
+    aspectRatio: 2,
+    devicePixelRatio: 1,
     plugins: {
       legend: {
         display: false,
@@ -204,7 +206,9 @@ export default function Analytics() {
 
   const pieChartOptions = {
     responsive: true,
-    maintainAspectRatio: false,
+    maintainAspectRatio: true,
+    aspectRatio: 1,
+    devicePixelRatio: 1,
     plugins: {
       legend: {
         position: 'bottom' as const,
@@ -450,7 +454,7 @@ export default function Analytics() {
                   <h3 style={{ margin: '0 0 20px', fontSize: '18px', fontWeight: '600', color: '#2c3e50' }}>
                     Revenue Trend
                   </h3>
-                  <div style={{ height: '300px' }}>
+                  <div style={{ height: '300px', position: 'relative' }}>
                     <Line data={revenueChartData} options={chartOptions} />
                   </div>
                 </Card>
@@ -458,7 +462,7 @@ export default function Analytics() {
                   <h3 style={{ margin: '0 0 20px', fontSize: '18px', fontWeight: '600', color: '#2c3e50' }}>
                     Revenue by Currency
                   </h3>
-                  <div style={{ height: '300px' }}>
+                  <div style={{ height: '300px', position: 'relative' }}>
                     <Doughnut data={currencyChartData} options={pieChartOptions} />
                   </div>
                 </Card>
@@ -474,7 +478,7 @@ export default function Analytics() {
                   <h3 style={{ margin: '0 0 20px', fontSize: '18px', fontWeight: '600', color: '#2c3e50' }}>
                     Daily Revenue Trend
                   </h3>
-                  <div style={{ height: '400px' }}>
+                  <div style={{ height: '400px', position: 'relative' }}>
                     <Line data={revenueChartData} options={chartOptions} />
                   </div>
                 </Card>
@@ -482,7 +486,7 @@ export default function Analytics() {
                   <h3 style={{ margin: '0 0 20px', fontSize: '18px', fontWeight: '600', color: '#2c3e50' }}>
                     Top Tenants by Revenue
                   </h3>
-                  <div style={{ height: '400px' }}>
+                  <div style={{ height: '400px', position: 'relative' }}>
                     <Bar data={topTenantsChartData} options={chartOptions} />
                   </div>
                 </Card>
@@ -557,7 +561,7 @@ export default function Analytics() {
                   <h3 style={{ margin: '0 0 20px', fontSize: '18px', fontWeight: '600', color: '#2c3e50' }}>
                     New Tenants Over Time
                   </h3>
-                  <div style={{ height: '400px' }}>
+                  <div style={{ height: '400px', position: 'relative' }}>
                     <Bar data={tenantGrowthChartData} options={chartOptions} />
                   </div>
                 </Card>
@@ -565,7 +569,7 @@ export default function Analytics() {
                   <h3 style={{ margin: '0 0 20px', fontSize: '18px', fontWeight: '600', color: '#2c3e50' }}>
                     Plan Distribution
                   </h3>
-                  <div style={{ height: '400px' }}>
+                  <div style={{ height: '400px', position: 'relative' }}>
                     <Pie data={planDistributionData} options={pieChartOptions} />
                   </div>
                 </Card>
@@ -615,7 +619,7 @@ export default function Analytics() {
                   <h3 style={{ margin: '0 0 20px', fontSize: '18px', fontWeight: '600', color: '#2c3e50' }}>
                     Daily Transactions
                   </h3>
-                  <div style={{ height: '400px' }}>
+                  <div style={{ height: '400px', position: 'relative' }}>
                     <Line data={transactionChartData} options={chartOptions} />
                   </div>
                 </Card>
@@ -623,7 +627,7 @@ export default function Analytics() {
                   <h3 style={{ margin: '0 0 20px', fontSize: '18px', fontWeight: '600', color: '#2c3e50' }}>
                     Payment Methods
                   </h3>
-                  <div style={{ height: '400px' }}>
+                  <div style={{ height: '400px', position: 'relative' }}>
                     <Doughnut data={paymentMethodsData} options={pieChartOptions} />
                   </div>
                 </Card>

@@ -3,6 +3,7 @@ Serializers for suppliers app.
 """
 from rest_framework import serializers
 from .models import Supplier, SupplierTransaction
+from core.utils import get_tenant_from_request
 
 
 class SupplierSerializer(serializers.ModelSerializer):
@@ -15,6 +16,25 @@ class SupplierSerializer(serializers.ModelSerializer):
             'payment_terms', 'notes', 'is_active', 'created_at', 'updated_at'
         ]
         read_only_fields = ['balance', 'created_at', 'updated_at']
+    
+    def create(self, validated_data):
+        """Create supplier with tenant from context."""
+        # Get tenant from context (set by perform_create or request)
+        request = self.context.get('request')
+        if request:
+            tenant = getattr(request, 'tenant', None)
+            if not tenant:
+                # Fallback to user's tenant
+                tenant = get_tenant_from_request(request)
+            
+            if tenant:
+                validated_data['tenant'] = tenant
+            else:
+                raise serializers.ValidationError("Tenant is required for supplier creation.")
+        else:
+            raise serializers.ValidationError("Request context is required for supplier creation.")
+        
+        return super().create(validated_data)
 
 
 class SupplierTransactionSerializer(serializers.ModelSerializer):
@@ -29,4 +49,5 @@ class SupplierTransactionSerializer(serializers.ModelSerializer):
             'reference_type', 'reference_id', 'notes', 'created_at'
         ]
         read_only_fields = ['created_at']
+
 

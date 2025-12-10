@@ -18,3 +18,4 @@ class CustomerTransactionAdmin(admin.ModelAdmin):
     list_filter = ['transaction_type', 'created_at']
     readonly_fields = ['created_at']
 
+

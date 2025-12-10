@@ -77,3 +77,4 @@ def debug_user_tenant_info(request):
         'users_without_tenant': [u for u in users_list if u['tenant_id'] is None],
     })
 
+

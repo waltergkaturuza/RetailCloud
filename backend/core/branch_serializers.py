@@ -83,3 +83,4 @@ class BranchListSerializer(serializers.ModelSerializer):
     def get_staff_count(self, obj):
         return obj.staff.count()
 
+

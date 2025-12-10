@@ -1,0 +1,53 @@
+/* Dashboard Responsive Grid Styles */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.recommendations-column {
+  grid-column: span 2;
+}
+
+/* Recommendation cards grid responsiveness */
+.recommendations-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 1400px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+  .recommendations-column {
+    grid-column: span 2 !important;
+  }
+  .recommendations-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
+
+@media (max-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .recommendations-column {
+    grid-column: span 2 !important;
+  }
+  .recommendations-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .recommendations-column {
+    grid-column: span 1 !important;
+  }
+  .recommendations-grid {
+    grid-template-columns: 1fr !important;
+  }
+}

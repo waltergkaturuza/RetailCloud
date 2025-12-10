@@ -1,7 +1,7 @@
 """
 Authentication and user management views.
 """
-from rest_framework import viewsets, status, permissions
+from rest_framework import viewsets, status, permissions, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -9,6 +9,7 @@ from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.utils import timezone
 from rest_framework import serializers
+from django_filters.rest_framework import DjangoFilterBackend
 from .models import User
 from .serializers import (
     UserSerializer, UserCreateSerializer, UserLoginSerializer,
@@ -144,6 +145,10 @@ class UserViewSet(viewsets.ModelViewSet):
     """User management viewset."""
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['role', 'is_active']
+    search_fields = ['username', 'email', 'first_name', 'last_name']
+    ordering_fields = ['username', 'email', 'date_joined']
     
     def get_queryset(self):
         """Filter users by tenant - each tenant sees only their users."""

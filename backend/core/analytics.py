@@ -192,3 +192,4 @@ class SalesInsights:
             'total_sales': count
         }
 
+

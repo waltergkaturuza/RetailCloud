@@ -86,3 +86,4 @@ class Command(BaseCommand):
                 f'✅ Assigned {user.email} to tenant: {tenant.company_name}'
             ))
 
+

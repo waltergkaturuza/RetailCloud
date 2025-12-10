@@ -89,3 +89,4 @@ class TenantCurrency(models.Model):
     def __str__(self):
         return f"{self.tenant.company_name} - {self.currency.code}"
 
+

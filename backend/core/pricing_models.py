@@ -101,3 +101,4 @@ class ModulePricing(models.Model):
     def __str__(self):
         return f"{self.pricing_rule.name} - {self.module.name}"
 
+

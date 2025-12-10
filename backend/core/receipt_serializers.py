@@ -44,3 +44,4 @@ class ReceiptPrintLogSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['printed_at', 'printed_by']
 
+

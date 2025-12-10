@@ -168,18 +168,25 @@ export default function Receipt({ sale, onClose }: ReceiptProps) {
               <>
                 {template?.show_company_name !== false && (
                   <h2 style={{ margin: '0 0 8px 0', fontSize: `${fontSize + 4}px`, fontWeight: 'bold' }}>
-                    RETAIL SAAS STORE
+                    {sale.tenant_company_name || 'STORE'}
                   </h2>
                 )}
-                {template?.show_address !== false && (
+                {template?.show_address !== false && (sale.tenant_address || sale.tenant_city || sale.tenant_country) && (
                   <div style={{ fontSize: `${fontSize - 2}px`, color: '#666', marginBottom: '4px' }}>
-                    123 Main Street<br />
-                    Harare, Zimbabwe
+                    {sale.tenant_address && <>{sale.tenant_address}<br /></>}
+                    {sale.tenant_city && sale.tenant_country ? (
+                      <>{sale.tenant_city}, {sale.tenant_country}</>
+                    ) : sale.tenant_city || sale.tenant_country}
                   </div>
                 )}
-                {template?.show_phone !== false && (
+                {template?.show_phone !== false && sale.tenant_phone && (
                   <div style={{ fontSize: `${fontSize - 2}px`, color: '#666' }}>
-                    Phone: +263 123 456 789
+                    Phone: {sale.tenant_phone}
+                  </div>
+                )}
+                {template?.show_email !== false && sale.tenant_email && (
+                  <div style={{ fontSize: `${fontSize - 2}px`, color: '#666' }}>
+                    {sale.tenant_email}
                   </div>
                 )}
               </>

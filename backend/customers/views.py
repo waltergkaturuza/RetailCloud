@@ -5,6 +5,7 @@ from rest_framework import viewsets, filters
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Customer, CustomerTransaction
 from .serializers import CustomerSerializer, CustomerTransactionSerializer
+from core.utils import get_tenant_from_request
 
 
 class CustomerViewSet(viewsets.ModelViewSet):
@@ -17,10 +18,27 @@ class CustomerViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Filter by tenant."""
+        tenant = get_tenant_from_request(self.request)
         queryset = Customer.objects.all()
-        if hasattr(self.request, 'tenant') and self.request.tenant:
-            queryset = queryset.filter(tenant=self.request.tenant)
+        if tenant:
+            queryset = queryset.filter(tenant=tenant)
+        else:
+            queryset = queryset.none()
         return queryset
+    
+    def get_serializer_context(self):
+        """Add request to serializer context."""
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+    
+    def perform_create(self, serializer):
+        """Set tenant automatically when creating a customer."""
+        tenant = get_tenant_from_request(self.request)
+        if not tenant:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError("Tenant context not found. Please ensure you are authenticated and associated with a tenant.")
+        serializer.save(tenant=tenant)
 
 
 class CustomerTransactionViewSet(viewsets.ReadOnlyModelViewSet):
@@ -32,8 +50,12 @@ class CustomerTransactionViewSet(viewsets.ReadOnlyModelViewSet):
     
     def get_queryset(self):
         """Filter by tenant."""
+        tenant = get_tenant_from_request(self.request)
         queryset = CustomerTransaction.objects.all()
-        if hasattr(self.request, 'tenant') and self.request.tenant:
-            queryset = queryset.filter(tenant=self.request.tenant)
+        if tenant:
+            queryset = queryset.filter(tenant=tenant)
+        else:
+            queryset = queryset.none()
         return queryset
+
 

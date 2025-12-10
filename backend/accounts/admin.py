@@ -23,3 +23,4 @@ class UserPermissionAdmin(admin.ModelAdmin):
     list_filter = ['module', 'permission', 'granted']
     search_fields = ['user__email', 'module']
 
+

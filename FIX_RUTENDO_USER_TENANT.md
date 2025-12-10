@@ -59,3 +59,4 @@ After assigning rutendo to "Default Shop" tenant:
 
 **Status:** The filtering logic is working correctly. The issue is that rutendo needs a tenant assignment. ✅
 
+

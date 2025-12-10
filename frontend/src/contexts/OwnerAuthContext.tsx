@@ -46,11 +46,29 @@ export const OwnerAuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error: any) {
       console.error('Failed to refresh owner user:', error)
-      setUser(null)
-      localStorage.removeItem('owner_user')
+      // On 401, token is expired/invalid - logout
+      if (error.response?.status === 401) {
+        logout()
+      } else {
+        setUser(null)
+        localStorage.removeItem('owner_user')
+      }
       setIsLoading(false)
     }
   }
+  
+  // Listen for auth logout events from API interceptor
+  useEffect(() => {
+    const handleAuthLogout = () => {
+      logout()
+    }
+    
+    window.addEventListener('auth:logout', handleAuthLogout)
+    return () => {
+      window.removeEventListener('auth:logout', handleAuthLogout)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     const checkAuth = async () => {

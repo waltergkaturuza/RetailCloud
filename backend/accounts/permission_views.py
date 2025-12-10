@@ -316,3 +316,4 @@ class UserPermissionViewSet(viewsets.ModelViewSet):
             'matrix': matrix
         })
 
+

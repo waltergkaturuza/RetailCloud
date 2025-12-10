@@ -29,3 +29,4 @@ class Command(BaseCommand):
                     self.style.WARNING(f'Currency already exists: {currency.code}')
                 )
 
+

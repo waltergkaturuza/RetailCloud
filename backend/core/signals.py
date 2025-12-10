@@ -63,3 +63,4 @@ def check_business_category_change(sender, instance, **kwargs):
     else:
         instance._old_business_category = None
 
+

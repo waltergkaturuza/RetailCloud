@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import Button from './ui/Button';
+import Card from './ui/Card';
 
 interface AdvancedSearchProps {
   fields: Array<{
@@ -21,7 +23,15 @@ export default function AdvancedSearch({ fields, onSearch, onReset }: AdvancedSe
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSearch(filters);
+    // Clean up filters: remove empty strings and null values
+    const cleanedFilters: Record<string, any> = {};
+    Object.keys(filters).forEach(key => {
+      const value = filters[key];
+      if (value !== '' && value !== null && value !== undefined) {
+        cleanedFilters[key] = value;
+      }
+    });
+    onSearch(cleanedFilters);
   };
 
   const handleReset = () => {
@@ -35,14 +45,35 @@ export default function AdvancedSearch({ fields, onSearch, onReset }: AdvancedSe
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="btn btn-secondary btn-sm"
-        style={{ marginBottom: isOpen ? '16px' : '0' }}
+        style={{
+          padding: '10px 16px',
+          background: '#f8f9fa',
+          border: '1px solid #dee2e6',
+          borderRadius: '6px',
+          cursor: 'pointer',
+          fontSize: '14px',
+          fontWeight: '500',
+          color: '#495057',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          marginBottom: isOpen ? '16px' : '0',
+          transition: 'all 0.2s'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = '#e9ecef'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = '#f8f9fa'
+        }}
       >
-        🔍 Advanced Search {isOpen ? '▼' : '▶'}
+        <span>🔍</span>
+        <span>Advanced Search</span>
+        <span>{isOpen ? '▼' : '▶'}</span>
       </button>
 
       {isOpen && (
-        <div className="card" style={{ marginTop: '10px' }}>
+        <Card style={{ marginTop: '10px', padding: '20px' }}>
           <form onSubmit={handleSubmit}>
             <div style={{ 
               display: 'grid', 
@@ -65,7 +96,14 @@ export default function AdvancedSearch({ fields, onSearch, onReset }: AdvancedSe
                     <select
                       value={filters[field.name] || ''}
                       onChange={(e) => handleChange(field.name, e.target.value)}
-                      className="input"
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        border: '1px solid #ddd',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        background: 'white'
+                      }}
                     >
                       <option value="">All</option>
                       {field.options?.map((opt) => (
@@ -79,21 +117,39 @@ export default function AdvancedSearch({ fields, onSearch, onReset }: AdvancedSe
                       type="date"
                       value={filters[field.name] || ''}
                       onChange={(e) => handleChange(field.name, e.target.value)}
-                      className="input"
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        border: '1px solid #ddd',
+                        borderRadius: '6px',
+                        fontSize: '14px'
+                      }}
                     />
                   ) : field.type === 'number' ? (
                     <input
                       type="number"
                       value={filters[field.name] || ''}
                       onChange={(e) => handleChange(field.name, e.target.value)}
-                      className="input"
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        border: '1px solid #ddd',
+                        borderRadius: '6px',
+                        fontSize: '14px'
+                      }}
                     />
                   ) : (
                     <input
                       type="text"
                       value={filters[field.name] || ''}
                       onChange={(e) => handleChange(field.name, e.target.value)}
-                      className="input"
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        border: '1px solid #ddd',
+                        borderRadius: '6px',
+                        fontSize: '14px'
+                      }}
                       placeholder={`Filter by ${field.label.toLowerCase()}`}
                     />
                   )}
@@ -109,9 +165,10 @@ export default function AdvancedSearch({ fields, onSearch, onReset }: AdvancedSe
               </Button>
             </div>
           </form>
-        </div>
+        </Card>
       )}
     </div>
   );
 }
+
 

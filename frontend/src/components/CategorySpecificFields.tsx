@@ -310,7 +310,12 @@ export default function CategorySpecificFields({
         {sectionNames.map(sectionName => (
           <button
             key={sectionName}
-            onClick={() => setActiveSection(sectionName)}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              setActiveSection(sectionName)
+            }}
             style={{
               padding: '12px 24px',
               background: 'transparent',

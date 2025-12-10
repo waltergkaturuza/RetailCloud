@@ -9,3 +9,4 @@ websocket_urlpatterns = [
     path('ws/sales/', SalesConsumer.as_asgi()),
 ]
 
+

@@ -35,9 +35,20 @@ class TenantMiddleware(MiddlewareMixin):
                     pass
         
         # Method 3: Get from authenticated user
-        if not tenant and request.user.is_authenticated:
-            if hasattr(request.user, 'tenant'):
-                tenant = request.user.tenant
+        # Note: JWT authentication happens in DRF views, not middleware,
+        # so request.user might be AnonymousUser here. We'll handle this in views.
+        if not tenant:
+            # Check if user is authenticated (this works for session auth, but not always for JWT)
+            if hasattr(request, 'user') and request.user.is_authenticated:
+                # For regular users, get tenant from user.tenant
+                # Need to refresh from DB to get relationship
+                try:
+                    from accounts.models import User
+                    user = User.objects.select_related('tenant').get(pk=request.user.pk)
+                    if user.tenant:
+                        tenant = user.tenant
+                except (User.DoesNotExist, AttributeError):
+                    pass
         
         # Check subscription status
         if tenant:
