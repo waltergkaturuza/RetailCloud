@@ -60,6 +60,8 @@ class UserLoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
     tenant_slug = serializers.CharField(required=False, allow_blank=True)
+    two_factor_token = serializers.CharField(required=False, allow_blank=True)
+    backup_code = serializers.CharField(required=False, allow_blank=True)
 
 
 class PasswordChangeSerializer(serializers.Serializer):

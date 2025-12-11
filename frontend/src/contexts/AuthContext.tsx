@@ -5,7 +5,7 @@ import api from '../lib/api';
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (email: string, password: string, tenantSlug?: string) => Promise<void>;
+  login: (email: string, password: string, tenantSlug?: string, totpToken?: string, backupCode?: string) => Promise<void | { requires_2fa: true; message: string }>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -67,10 +67,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const login = async (email: string, password: string, tenantSlug?: string) => {
-    const data = await authService.login(email, password, tenantSlug);
-    setUser(data.user);
-    authService.setCurrentUser(data.user);
+  const login = async (
+    email: string, 
+    password: string, 
+    tenantSlug?: string,
+    totpToken?: string,
+    backupCode?: string
+  ) => {
+    const data = await authService.login(email, password, tenantSlug, totpToken, backupCode);
+    
+    // Check if 2FA is required
+    if ('requires_2fa' in data && data.requires_2fa) {
+      return data; // Return 2FA requirement to handle in component
+    }
+    
+    // Normal login success
+    const loginResponse = data as { user: User; tokens: { access: string; refresh: string } };
+    setUser(loginResponse.user);
+    authService.setCurrentUser(loginResponse.user);
   };
 
   const logout = () => {

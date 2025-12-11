@@ -19,7 +19,7 @@ export default function Card({ children, className = '', title, actions }: CardP
           paddingBottom: '16px',
           borderBottom: '1px solid #ecf0f1'
         }}>
-          {title && <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600', color: '#2c3e50' }}>{title}</h3>}
+          {title && <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#2c3e50' }}>{title}</h3>}
           {actions && <div>{actions}</div>}
         </div>
       )}

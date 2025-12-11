@@ -191,7 +191,8 @@ class TenantDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'slug', 'company_name', 'contact_person', 'email', 'phone',
             'address', 'country', 'city',
-            'subscription_status', 'trial_ends_at', 'subscription_ends_at',
+            'subscription_status', 'subscription_type', 'preferred_payment_method',
+            'trial_ends_at', 'subscription_ends_at',
             'timezone', 'currency', 'tax_rate', 'vat_number',
             'business_category', 'business_category_name', 'business_category_icon',
             'custom_category_name',
@@ -341,8 +342,9 @@ class TenantCreateUpdateSerializer(serializers.ModelSerializer):
         model = Tenant
         fields = [
             'name', 'slug', 'company_name', 'contact_person', 'email', 'phone',
-            'address', 'country', 'city',
-            'subscription_status', 'trial_ends_at', 'subscription_ends_at',
+            'address', 'address_line_2', 'country', 'city', 'state_province', 'postal_code',
+            'subscription_status', 'subscription_type', 'preferred_payment_method',
+            'trial_ends_at', 'subscription_ends_at',
             'timezone', 'currency', 'tax_rate', 'vat_number',
             'business_category', 'custom_category_name',
             'logo', 'manager_signature', 'approved_by_signature', 'prepared_by_signature',
@@ -433,7 +435,8 @@ class TenantSummarySerializer(serializers.ModelSerializer):
         model = Tenant
         fields = [
             'id', 'name', 'slug', 'company_name', 'email', 'phone',
-            'subscription_status', 'trial_ends_at', 'subscription_ends_at',
+            'subscription_status', 'subscription_type', 'preferred_payment_method',
+            'trial_ends_at', 'subscription_ends_at',
             'user_count', 'branch_count', 'sales_today', 'business_category_name',
             'subscription_name', 'created_at'
         ]

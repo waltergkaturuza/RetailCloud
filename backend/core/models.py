@@ -15,9 +15,12 @@ class Tenant(models.Model):
     contact_person = models.CharField(max_length=255)
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=20)
-    address = models.TextField(blank=True)
-    country = models.CharField(max_length=100, default='Zimbabwe')
+    address = models.TextField(blank=True, help_text="Street address")
+    address_line_2 = models.CharField(max_length=255, blank=True, help_text="Apartment, suite, unit, building, floor, etc.")
     city = models.CharField(max_length=100, blank=True)
+    state_province = models.CharField(max_length=100, blank=True, help_text="State, province, or region")
+    postal_code = models.CharField(max_length=20, blank=True, help_text="ZIP code or postal code")
+    country = models.CharField(max_length=100, default='Zimbabwe')
     
     # Subscription
     subscription_status = models.CharField(
@@ -30,6 +33,31 @@ class Tenant(models.Model):
             ('cancelled', 'Cancelled'),
         ],
         default='trial'
+    )
+    subscription_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('monthly', 'Monthly'),
+            ('yearly', 'Yearly'),
+        ],
+        default='monthly',
+        help_text="Preferred subscription billing cycle"
+    )
+    preferred_payment_method = models.CharField(
+        max_length=50,
+        choices=[
+            ('card', 'Credit/Debit Card'),
+            ('ecocash', 'EcoCash'),
+            ('onemoney', 'OneMoney'),
+            ('telecash', 'Telecash'),
+            ('zipit', 'ZIPIT'),
+            ('paypal', 'PayPal'),
+            ('bank_transfer', 'Bank Transfer'),
+            ('cash', 'Cash'),
+        ],
+        blank=True,
+        null=True,
+        help_text="Preferred payment method for subscriptions"
     )
     trial_ends_at = models.DateTimeField(null=True, blank=True)
     subscription_ends_at = models.DateTimeField(null=True, blank=True)
@@ -118,7 +146,8 @@ class Module(models.Model):
     """Available system modules."""
     name = models.CharField(max_length=100, unique=True)
     code = models.SlugField(unique=True, help_text="Module identifier code")
-    description = models.TextField(blank=True)
+    description = models.TextField(blank=True, help_text="Brief description of the module")
+    detailed_description = models.TextField(blank=True, help_text="Detailed description with benefits and use cases")
     category = models.CharField(
         max_length=50,
         choices=[
@@ -129,10 +158,26 @@ class Module(models.Model):
         ],
         default='core'
     )
-    icon = models.CharField(max_length=50, blank=True, help_text="Icon class or name")
+    icon = models.CharField(max_length=50, blank=True, help_text="Icon class or name (emoji)")
+    
+    # Enhanced details for marketing and tenant appreciation
+    features = models.JSONField(default=list, blank=True, help_text="List of key features: ['Feature 1', 'Feature 2']")
+    benefits = models.JSONField(default=list, blank=True, help_text="List of benefits: ['Benefit 1', 'Benefit 2']")
+    use_cases = models.JSONField(default=list, blank=True, help_text="List of use cases: ['Use case 1', 'Use case 2']")
+    target_business_types = models.JSONField(default=list, blank=True, help_text="Business types this module is ideal for")
+    
+    # Visual elements
+    highlight_color = models.CharField(max_length=7, blank=True, help_text="Hex color for module card (e.g., #667eea)")
+    is_featured = models.BooleanField(default=False, help_text="Show this module prominently in package displays")
+    
+    # Additional info
+    video_demo_url = models.URLField(blank=True, help_text="URL to video demonstration")
+    documentation_url = models.URLField(blank=True, help_text="URL to detailed documentation")
+    
     is_active = models.BooleanField(default=True)
     sort_order = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
         db_table = 'modules'
@@ -176,9 +221,11 @@ class Branch(models.Model):
     
     # Contact Information
     address = models.TextField(blank=True)
+    address_line_2 = models.CharField(max_length=255, blank=True, help_text="Apartment, suite, unit, building, floor, etc.")
     city = models.CharField(max_length=100, blank=True)
-    country = models.CharField(max_length=100, default='Zimbabwe')
+    state_province = models.CharField(max_length=100, blank=True, help_text="State, province, or region")
     postal_code = models.CharField(max_length=20, blank=True)
+    country = models.CharField(max_length=100, default='Zimbabwe')
     phone = models.CharField(max_length=20, blank=True)
     phone_alt = models.CharField(max_length=20, blank=True, help_text="Alternative phone number")
     email = models.EmailField(blank=True)
@@ -242,13 +289,20 @@ class Branch(models.Model):
         parts = []
         if self.address:
             parts.append(self.address)
+        if self.address_line_2:
+            parts.append(self.address_line_2)
+        city_state = []
         if self.city:
-            parts.append(self.city)
+            city_state.append(self.city)
+        if self.state_province:
+            city_state.append(self.state_province)
+        if city_state:
+            parts.append(', '.join(city_state))
         if self.postal_code:
             parts.append(self.postal_code)
         if self.country:
             parts.append(self.country)
-        return ", ".join(parts)
+        return ', '.join(parts)
 
 
 # Import currency models here to avoid circular imports

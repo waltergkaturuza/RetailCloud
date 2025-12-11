@@ -43,15 +43,74 @@ interface Payment {
   created_at: string
 }
 
+interface PricingRule {
+  id: number
+  name: string
+  code: string
+  category_price_monthly: number
+  user_price_monthly: number
+  branch_price_monthly: number
+  yearly_discount_percent: number
+  currency: string
+  is_active: boolean
+  is_default: boolean
+  module_pricing_count: number
+  module_pricing?: Array<{
+    id: number
+    module_name: string
+    module_code: string
+    price_monthly: number
+    price_yearly: number
+  }>
+}
+
+interface Package {
+  id: number
+  name: string
+  code: string
+  description: string
+  price_monthly: number | string
+  price_yearly: number | string
+  currency: string
+  max_users: number
+  max_branches: number
+  is_active: boolean
+  modules?: Array<{
+    id: number
+    name: string
+    code: string
+    description: string
+  }>
+  modules_count?: number
+  yearly_savings?: number | string
+}
+
 export default function SubscriptionManagement() {
-  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'invoices' | 'payments' | 'failed'>('overview')
+  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'packages' | 'pricing' | 'invoices' | 'payments' | 'failed'>('overview')
 
   // Fetch pricing summary
   const { data: pricingSummary, isLoading: pricingLoading } = useQuery({
     queryKey: ['tenant-pricing-summary'],
     queryFn: async () => {
-      const response = await api.get('/subscriptions/tenant-modules/pricing_summary/')
-      return response.data
+      try {
+        const response = await api.get('/subscriptions/tenant-modules/pricing_summary/')
+        return response.data
+      } catch {
+        return null
+      }
+    },
+  })
+
+  // Fetch active pricing rule
+  const { data: activePricingRule, isLoading: pricingRuleLoading } = useQuery<PricingRule>({
+    queryKey: ['active-pricing-rule'],
+    queryFn: async () => {
+      try {
+        const response = await api.get('/core/pricing-rules/active/')
+        return response.data
+      } catch {
+        return null
+      }
     },
   })
 
@@ -59,8 +118,16 @@ export default function SubscriptionManagement() {
   const { data: currentSubscription, isLoading: subLoading } = useQuery<Subscription>({
     queryKey: ['current-subscription'],
     queryFn: async () => {
-      const response = await api.get('/subscriptions/subscriptions/current/')
-      return response.data
+      try {
+        const response = await api.get('/subscriptions/subscriptions/current/')
+        return response.data
+      } catch (error: any) {
+        // Return null for 404 (no subscription found) instead of throwing
+        if (error.response?.status === 404) {
+          return null
+        }
+        throw error
+      }
     },
     retry: false,
   })
@@ -69,8 +136,16 @@ export default function SubscriptionManagement() {
   const { data: subscriptionHistory } = useQuery<Subscription[]>({
     queryKey: ['subscription-history'],
     queryFn: async () => {
-      const response = await api.get('/subscriptions/subscriptions/history/')
-      return response.data || []
+      try {
+        const response = await api.get('/subscriptions/subscriptions/history/')
+        return response.data || []
+      } catch (error: any) {
+        // Return empty array for 400/404 errors instead of throwing
+        if (error.response?.status === 400 || error.response?.status === 404) {
+          return []
+        }
+        throw error
+      }
     },
     retry: false,
   })
@@ -113,8 +188,26 @@ export default function SubscriptionManagement() {
     retry: false,
   })
 
+  // Fetch available packages for upgrade
+  const { data: packagesResponse } = useQuery<Package[]>({
+    queryKey: ['available-packages'],
+    queryFn: async () => {
+      try {
+        const response = await api.get('/subscriptions/packages/')
+        return response.data?.results || response.data || []
+      } catch {
+        return []
+      }
+    },
+  })
+
   const invoices = (invoicesResponse as Invoice[]) || []
   const payments = (paymentsResponse as Payment[]) || []
+  const availablePackages = (packagesResponse || []).filter((pkg: Package) => pkg.is_active).sort((a, b) => {
+    const aPrice = typeof a.price_monthly === 'number' ? a.price_monthly : parseFloat(a.price_monthly?.toString() || '0')
+    const bPrice = typeof b.price_monthly === 'number' ? b.price_monthly : parseFloat(b.price_monthly?.toString() || '0')
+    return aPrice - bPrice
+  })
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -150,6 +243,7 @@ export default function SubscriptionManagement() {
       >
         {[
           { id: 'overview', label: 'Overview', icon: '📊' },
+          { id: 'packages', label: 'Available Plans', icon: '📦' },
           { id: 'invoices', label: `Invoices (${invoices.length})`, icon: '🧾' },
           { id: 'payments', label: `Payment History (${payments.length})`, icon: '💵' },
           { id: 'failed', label: `Failed Payments (${failedPayments?.length || 0})`, icon: '⚠️' },
@@ -295,6 +389,182 @@ export default function SubscriptionManagement() {
               </div>
             </Card>
           </div>
+        </div>
+      )}
+
+      {/* Pricing Models Tab */}
+      {activeSubTab === 'pricing' && (
+        <div>
+          {/* Active Pricing Rule */}
+          <Card title="Active Pricing Model" style={{ marginBottom: '24px' }}>
+            {pricingRuleLoading ? (
+              <div style={{ textAlign: 'center', padding: '40px' }}>Loading pricing information...</div>
+            ) : !activePricingRule ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#7f8c8d' }}>
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>💰</div>
+                <div style={{ fontSize: '16px', fontWeight: '500', marginBottom: '8px' }}>
+                  No active pricing model found
+                </div>
+                <div style={{ fontSize: '14px' }}>
+                  Contact support for pricing information.
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div style={{ marginBottom: '24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '600', color: '#2c3e50' }}>
+                        {activePricingRule.name}
+                      </h3>
+                      <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#7f8c8d' }}>
+                        {activePricingRule.code}
+                      </p>
+                    </div>
+                    {activePricingRule.is_default && (
+                      <span style={{
+                        padding: '6px 12px',
+                        borderRadius: '12px',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        background: '#28a745',
+                        color: 'white',
+                      }}>
+                        DEFAULT
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Base Pricing */}
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+                  gap: '16px',
+                  marginBottom: '24px'
+                }}>
+                  <div style={{ padding: '16px', background: '#f8f9fa', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '12px', color: '#6c757d', marginBottom: '4px' }}>Category Price (Monthly)</div>
+                    <div style={{ fontSize: '18px', fontWeight: '600' }}>
+                      {activePricingRule.currency} {parseFloat(activePricingRule.category_price_monthly.toString()).toFixed(2)}
+                    </div>
+                  </div>
+                  <div style={{ padding: '16px', background: '#f8f9fa', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '12px', color: '#6c757d', marginBottom: '4px' }}>User Price (Monthly)</div>
+                    <div style={{ fontSize: '18px', fontWeight: '600' }}>
+                      {activePricingRule.currency} {parseFloat(activePricingRule.user_price_monthly.toString()).toFixed(2)}
+                    </div>
+                  </div>
+                  <div style={{ padding: '16px', background: '#f8f9fa', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '12px', color: '#6c757d', marginBottom: '4px' }}>Branch Price (Monthly)</div>
+                    <div style={{ fontSize: '18px', fontWeight: '600' }}>
+                      {activePricingRule.currency} {parseFloat(activePricingRule.branch_price_monthly.toString()).toFixed(2)}
+                    </div>
+                  </div>
+                  <div style={{ padding: '16px', background: '#f8f9fa', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '12px', color: '#6c757d', marginBottom: '4px' }}>Yearly Discount</div>
+                    <div style={{ fontSize: '18px', fontWeight: '600', color: '#28a745' }}>
+                      {parseFloat(activePricingRule.yearly_discount_percent.toString()).toFixed(1)}%
+                    </div>
+                  </div>
+                </div>
+
+                {/* Module Pricing Overrides */}
+                {activePricingRule.module_pricing_count > 0 && (
+                  <div style={{ borderTop: '1px solid #e9ecef', paddingTop: '16px' }}>
+                    <h4 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px', color: '#2c3e50' }}>
+                      Module-Specific Pricing ({activePricingRule.module_pricing_count} modules)
+                    </h4>
+                    {activePricingRule.module_pricing && activePricingRule.module_pricing.length > 0 ? (
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '2px solid #e9ecef' }}>
+                              <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', fontSize: '13px', color: '#6c757d' }}>Module</th>
+                              <th style={{ padding: '12px', textAlign: 'right', fontWeight: '600', fontSize: '13px', color: '#6c757d' }}>Monthly Price</th>
+                              <th style={{ padding: '12px', textAlign: 'right', fontWeight: '600', fontSize: '13px', color: '#6c757d' }}>Yearly Price</th>
+                              <th style={{ padding: '12px', textAlign: 'right', fontWeight: '600', fontSize: '13px', color: '#6c757d' }}>Savings</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {activePricingRule.module_pricing.map((mp) => {
+                              const monthlyPrice = parseFloat(mp.price_monthly.toString())
+                              const yearlyPrice = parseFloat(mp.price_yearly?.toString() || (monthlyPrice * 12 * (1 - parseFloat(activePricingRule.yearly_discount_percent.toString()) / 100)).toString())
+                              const savings = (monthlyPrice * 12) - yearlyPrice
+                              return (
+                                <tr key={mp.id} style={{ borderBottom: '1px solid #e9ecef' }}>
+                                  <td style={{ padding: '12px', fontWeight: '500' }}>{mp.module_name}</td>
+                                  <td style={{ padding: '12px', textAlign: 'right', fontWeight: '600' }}>
+                                    {activePricingRule.currency} {monthlyPrice.toFixed(2)}
+                                  </td>
+                                  <td style={{ padding: '12px', textAlign: 'right', fontWeight: '600' }}>
+                                    {activePricingRule.currency} {yearlyPrice.toFixed(2)}
+                                  </td>
+                                  <td style={{ padding: '12px', textAlign: 'right', color: '#28a745', fontWeight: '600' }}>
+                                    {activePricingRule.currency} {savings.toFixed(2)}
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div style={{ padding: '20px', textAlign: 'center', color: '#7f8c8d', fontSize: '14px' }}>
+                        No module-specific pricing overrides. Using base pricing for all modules.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </Card>
+
+          {/* Pricing Summary */}
+          {pricingSummary && (
+            <Card title="Your Current Pricing Summary">
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+                gap: '16px'
+              }}>
+                <div style={{ padding: '16px', background: '#e3f2fd', borderRadius: '8px' }}>
+                  <div style={{ fontSize: '12px', color: '#6c757d', marginBottom: '4px' }}>Monthly Total</div>
+                  <div style={{ fontSize: '24px', fontWeight: '700', color: '#1976d2' }}>
+                    {pricingSummary.currency || 'USD'} {parseFloat(pricingSummary.total_monthly?.toString() || '0').toFixed(2)}
+                  </div>
+                </div>
+                <div style={{ padding: '16px', background: '#e8f5e9', borderRadius: '8px' }}>
+                  <div style={{ fontSize: '12px', color: '#6c757d', marginBottom: '4px' }}>Yearly Total</div>
+                  <div style={{ fontSize: '24px', fontWeight: '700', color: '#388e3c' }}>
+                    {pricingSummary.currency || 'USD'} {parseFloat(pricingSummary.total_yearly?.toString() || '0').toFixed(2)}
+                  </div>
+                </div>
+                {pricingSummary.breakdown && pricingSummary.breakdown.length > 0 && (
+                  <div style={{ gridColumn: '1 / -1', marginTop: '16px' }}>
+                    <h4 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#2c3e50' }}>Cost Breakdown</h4>
+                    <div style={{ display: 'grid', gap: '8px' }}>
+                      {pricingSummary.breakdown.map((item: any, idx: number) => (
+                        <div key={idx} style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          padding: '12px', 
+                          background: '#f8f9fa', 
+                          borderRadius: '6px',
+                          fontSize: '14px'
+                        }}>
+                          <span style={{ color: '#6c757d' }}>{item.description || item.name}</span>
+                          <span style={{ fontWeight: '600' }}>
+                            {pricingSummary.currency || 'USD'} {parseFloat(item.amount?.toString() || '0').toFixed(2)}/mo
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
         </div>
       )}
 

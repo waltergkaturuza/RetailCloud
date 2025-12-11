@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query'
 import api from '../../lib/api'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
+import PackageManagement from './PackageManagement'
 
 interface Subscription {
   id: number
@@ -51,10 +52,42 @@ interface Payment {
   created_at: string
 }
 
+interface PricingRule {
+  id: number
+  name: string
+  code: string
+  category_price_monthly: number
+  user_price_monthly: number
+  branch_price_monthly: number
+  yearly_discount_percent: number
+  currency: string
+  is_active: boolean
+  is_default: boolean
+  module_pricing_count: number
+  module_pricing?: Array<{
+    id: number
+    module_name: string
+    module_code: string
+    price_monthly: number
+    price_yearly: number
+  }>
+}
+
 export default function OwnerSubscriptions() {
-  const [activeTab, setActiveTab] = useState<'subscriptions' | 'invoices' | 'payments'>('subscriptions')
+  const [activeTab, setActiveTab] = useState<'subscriptions' | 'packages' | 'pricing' | 'invoices' | 'payments'>('subscriptions')
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+
+  // Fetch all pricing rules
+  const { data: pricingRulesResponse } = useQuery({
+    queryKey: ['owner-pricing-rules'],
+    queryFn: async () => {
+      const response = await api.get('/core/pricing-rules/')
+      return response.data.results || response.data || []
+    },
+  })
+
+  const pricingRules = (pricingRulesResponse as PricingRule[]) || []
 
   // Fetch all subscriptions
   const { data: subscriptionsResponse } = useQuery({
@@ -148,7 +181,7 @@ export default function OwnerSubscriptions() {
   }
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
+    <div style={{ width: '100%', padding: '30px' }}>
       <div style={{ marginBottom: '32px' }}>
         <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '700', color: '#2c3e50' }}>
           Subscription Management
@@ -203,9 +236,11 @@ export default function OwnerSubscriptions() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '2px solid #ecf0f1' }}>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '2px solid #ecf0f1', overflowX: 'auto' }}>
         {[
           { id: 'subscriptions', label: `Subscriptions (${subscriptions.length})`, icon: '💳' },
+          { id: 'packages', label: 'Packages', icon: '📦' },
+          { id: 'pricing', label: 'Pricing Models', icon: '💰' },
           { id: 'invoices', label: `Invoices (${invoices.length})`, icon: '🧾' },
           { id: 'payments', label: `Payments (${payments.length})`, icon: '💵' },
         ].map((tab) => (
@@ -229,45 +264,52 @@ export default function OwnerSubscriptions() {
         ))}
       </div>
 
-      {/* Search and Filters */}
-      <Card style={{ marginBottom: '24px' }}>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'end' }}>
-          <div style={{ flex: 1 }}>
-            <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontSize: '13px' }}>
-              Search
-            </label>
-            <input
-              type="text"
-              placeholder="Search by tenant name, package, invoice number..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="input"
-              style={{ width: '100%' }}
-            />
+      {/* Packages Tab - Hide filters for packages */}
+      {activeTab === 'packages' && (
+        <PackageManagement />
+      )}
+
+      {/* Search and Filters - Only show for other tabs */}
+      {activeTab !== 'packages' && (
+        <Card style={{ marginBottom: '24px' }}>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'end' }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontSize: '13px' }}>
+                Search
+              </label>
+              <input
+                type="text"
+                placeholder="Search by tenant name, package, invoice number..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="input"
+                style={{ width: '100%' }}
+              />
+            </div>
+            <div style={{ minWidth: '200px' }}>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontSize: '13px' }}>
+                Status
+              </label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="input"
+                style={{ width: '100%' }}
+              >
+                <option value="all">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="trial">Trial</option>
+                <option value="past_due">Past Due</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="expired">Expired</option>
+              </select>
+            </div>
+            <Button variant="secondary" onClick={() => { setSearchQuery(''); setStatusFilter('all') }}>
+              Clear
+            </Button>
           </div>
-          <div style={{ minWidth: '200px' }}>
-            <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontSize: '13px' }}>
-              Status
-            </label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="input"
-              style={{ width: '100%' }}
-            >
-              <option value="all">All Statuses</option>
-              <option value="active">Active</option>
-              <option value="trial">Trial</option>
-              <option value="past_due">Past Due</option>
-              <option value="cancelled">Cancelled</option>
-              <option value="expired">Expired</option>
-            </select>
-          </div>
-          <Button variant="secondary" onClick={() => { setSearchQuery(''); setStatusFilter('all') }}>
-            Clear
-          </Button>
-        </div>
-      </Card>
+        </Card>
+      )}
 
       {/* Subscriptions Tab */}
       {activeTab === 'subscriptions' && (
@@ -321,6 +363,150 @@ export default function OwnerSubscriptions() {
             </div>
           )}
         </Card>
+      )}
+
+      {/* Pricing Models Tab */}
+      {activeTab === 'pricing' && (
+        <div>
+          <Card title="Pricing Models">
+            {pricingRules.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#7f8c8d' }}>
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>💰</div>
+                <div style={{ fontSize: '16px', fontWeight: '500', marginBottom: '8px' }}>
+                  No pricing models found
+                </div>
+                <div style={{ fontSize: '14px' }}>
+                  Create a pricing model to start managing subscription pricing.
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gap: '24px' }}>
+                {pricingRules.map((rule) => (
+                  <Card key={rule.id} style={{ border: rule.is_default ? '2px solid #28a745' : '1px solid #e9ecef' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '16px' }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                          <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '600', color: '#2c3e50' }}>
+                            {rule.name}
+                          </h3>
+                          {rule.is_default && (
+                            <span style={{
+                              padding: '4px 10px',
+                              borderRadius: '12px',
+                              fontSize: '11px',
+                              fontWeight: '600',
+                              background: '#28a745',
+                              color: 'white',
+                            }}>
+                              DEFAULT
+                            </span>
+                          )}
+                          {rule.is_active ? (
+                            <span style={{
+                              padding: '4px 10px',
+                              borderRadius: '12px',
+                              fontSize: '11px',
+                              fontWeight: '600',
+                              background: '#d4edda',
+                              color: '#155724',
+                            }}>
+                              ACTIVE
+                            </span>
+                          ) : (
+                            <span style={{
+                              padding: '4px 10px',
+                              borderRadius: '12px',
+                              fontSize: '11px',
+                              fontWeight: '600',
+                              background: '#f8d7da',
+                              color: '#721c24',
+                            }}>
+                              INACTIVE
+                            </span>
+                          )}
+                        </div>
+                        <p style={{ margin: 0, fontSize: '13px', color: '#7f8c8d' }}>
+                          Code: {rule.code} • {rule.module_pricing_count} module override(s)
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Base Pricing */}
+                    <div style={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', 
+                      gap: '12px',
+                      marginBottom: '16px',
+                      padding: '16px',
+                      background: '#f8f9fa',
+                      borderRadius: '8px'
+                    }}>
+                      <div>
+                        <div style={{ fontSize: '12px', color: '#6c757d', marginBottom: '4px' }}>Category Price</div>
+                        <div style={{ fontSize: '16px', fontWeight: '600' }}>
+                          {rule.currency} {parseFloat(rule.category_price_monthly.toString()).toFixed(2)}/mo
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '12px', color: '#6c757d', marginBottom: '4px' }}>User Price</div>
+                        <div style={{ fontSize: '16px', fontWeight: '600' }}>
+                          {rule.currency} {parseFloat(rule.user_price_monthly.toString()).toFixed(2)}/mo
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '12px', color: '#6c757d', marginBottom: '4px' }}>Branch Price</div>
+                        <div style={{ fontSize: '16px', fontWeight: '600' }}>
+                          {rule.currency} {parseFloat(rule.branch_price_monthly.toString()).toFixed(2)}/mo
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '12px', color: '#6c757d', marginBottom: '4px' }}>Yearly Discount</div>
+                        <div style={{ fontSize: '16px', fontWeight: '600', color: '#28a745' }}>
+                          {parseFloat(rule.yearly_discount_percent.toString()).toFixed(1)}%
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Module Pricing */}
+                    {rule.module_pricing_count > 0 && (
+                      <div style={{ borderTop: '1px solid #e9ecef', paddingTop: '16px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                          <h4 style={{ fontSize: '14px', fontWeight: '600', margin: 0, color: '#2c3e50' }}>
+                            Module-Specific Pricing
+                          </h4>
+                          <Button 
+                            size="small" 
+                            variant="secondary"
+                            onClick={async () => {
+                              try {
+                                const response = await api.get(`/core/pricing-rules/${rule.id}/modules/`)
+                                // In a real implementation, you'd open a modal or navigate to detail page
+                                alert(`${response.data.length} module pricing overrides found. Detail view coming soon.`)
+                              } catch (error) {
+                                console.error('Error fetching module pricing:', error)
+                              }
+                            }}
+                          >
+                            View Details
+                          </Button>
+                        </div>
+                        <div style={{ fontSize: '13px', color: '#7f8c8d' }}>
+                          {rule.module_pricing_count} module(s) have custom pricing
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Metadata */}
+                    <div style={{ borderTop: '1px solid #e9ecef', paddingTop: '12px', marginTop: '12px', fontSize: '12px', color: '#7f8c8d' }}>
+                      Created: {new Date(rule.created_at).toLocaleDateString()} • 
+                      Updated: {new Date(rule.updated_at).toLocaleDateString()}
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
       )}
 
       {/* Invoices Tab */}

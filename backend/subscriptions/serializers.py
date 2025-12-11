@@ -10,7 +10,12 @@ class ModuleSerializer(serializers.ModelSerializer):
     """Module serializer."""
     class Meta:
         model = Module
-        fields = ['id', 'name', 'code', 'description', 'category', 'icon']
+        fields = [
+            'id', 'name', 'code', 'description', 'detailed_description',
+            'category', 'icon', 'features', 'benefits', 'use_cases',
+            'target_business_types', 'highlight_color', 'is_featured',
+            'video_demo_url', 'documentation_url', 'is_active', 'sort_order'
+        ]
 
 
 class PackageSerializer(serializers.ModelSerializer):
@@ -20,17 +25,45 @@ class PackageSerializer(serializers.ModelSerializer):
         queryset=Module.objects.all(),
         many=True,
         write_only=True,
+        required=False,
         source='modules'
     )
+    modules_count = serializers.SerializerMethodField()
+    monthly_savings = serializers.SerializerMethodField()
+    yearly_savings = serializers.SerializerMethodField()
     
     class Meta:
         model = Package
         fields = [
             'id', 'name', 'code', 'description',
             'price_monthly', 'price_yearly', 'currency',
-            'modules', 'module_ids', 'max_users', 'max_branches',
-            'is_active'
+            'modules', 'module_ids', 'modules_count',
+            'max_users', 'max_branches',
+            'is_active', 'sort_order',
+            'monthly_savings', 'yearly_savings',
+            'created_at'
         ]
+        read_only_fields = ['id', 'created_at', 'modules_count', 'monthly_savings', 'yearly_savings']
+    
+    def get_modules_count(self, obj):
+        """Get count of modules in this package."""
+        return obj.modules.count() if hasattr(obj, 'modules') else 0
+    
+    def get_monthly_savings(self, obj):
+        """Calculate monthly savings compared to yearly (per month)."""
+        if obj.price_yearly and obj.price_monthly:
+            yearly_monthly = float(obj.price_yearly) / 12
+            savings = float(obj.price_monthly) - yearly_monthly
+            return max(0, savings)
+        return 0
+    
+    def get_yearly_savings(self, obj):
+        """Calculate total yearly savings."""
+        if obj.price_yearly and obj.price_monthly:
+            monthly_yearly = float(obj.price_monthly) * 12
+            savings = monthly_yearly - float(obj.price_yearly)
+            return max(0, savings)
+        return 0
 
 
 class SubscriptionSerializer(serializers.ModelSerializer):

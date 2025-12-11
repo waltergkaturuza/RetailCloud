@@ -20,6 +20,7 @@ from .category_services import (
 from .models import Tenant
 from .industry_category_defaults import get_default_categories_for_industry
 from inventory.models import Category
+from .utils import get_tenant_from_request
 
 
 def _create_default_categories_for_tenant(tenant: Tenant, category_code: str):
@@ -83,9 +84,9 @@ class BusinessCategoryViewSet(viewsets.ReadOnlyModelViewSet):
         
         return Response(recommendations)
     
-    @action(detail=False, methods=['post'])
+    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
     def suggest(self, request):
-        """Suggest business categories based on keywords."""
+        """Suggest business categories based on keywords. Public endpoint for signup."""
         keywords = request.data.get('keywords', '')
         description = request.data.get('description', '')
         
@@ -114,10 +115,11 @@ class TenantCategoryView(views.APIView):
         """Get current tenant's business category."""
         tenant = self._get_tenant(request)
         if not tenant:
-            return Response(
-                {'error': 'Tenant not found'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            # Return null category instead of 404 for better UX
+            return Response({
+                'category': None,
+                'custom_category_name': None
+            })
         
         if tenant.business_category:
             serializer = BusinessCategorySerializer(tenant.business_category)
@@ -231,8 +233,4 @@ class TenantCategoryView(views.APIView):
     
     def _get_tenant(self, request):
         """Get tenant from request."""
-        if hasattr(request, 'tenant') and request.tenant:
-            return request.tenant
-        elif request.user.is_authenticated and hasattr(request.user, 'tenant'):
-            return request.user.tenant
-        return None
+        return get_tenant_from_request(request)

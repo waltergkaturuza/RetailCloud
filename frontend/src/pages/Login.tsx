@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import TwoFactorAuthLogin from '../components/TwoFactorAuthLogin'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -8,22 +9,97 @@ export default function Login() {
   const [tenantSlug, setTenantSlug] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [requires2FA, setRequires2FA] = useState(false)
+  const [twoFaError, setTwoFaError] = useState('')
   const { login } = useAuth()
   const navigate = useNavigate()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setTwoFaError('')
+    setRequires2FA(false)
     setLoading(true)
 
     try {
-      await login(email, password, tenantSlug || undefined)
+      const result = await login(email, password, tenantSlug || undefined)
+      
+      // Check if 2FA is required
+      if (result && 'requires_2fa' in result && result.requires_2fa) {
+        setRequires2FA(true)
+        setLoading(false)
+        return
+      }
+      
+      // Check if password is expired
+      if (result && 'password_expired' in result && result.password_expired) {
+        // Redirect to change password page
+        navigate('/change-password?expired=true')
+        setLoading(false)
+        return
+      }
+      
+      // Normal login success
       navigate('/')
     } catch (err: any) {
-      setError(err.message || 'Login failed. Please check your credentials.')
+      // Handle rate limiting and account lockout
+      if (err.message?.includes('locked') || err.message?.includes('attempts')) {
+        setError(err.message || 'Account temporarily locked. Please try again later.')
+      } else {
+        setError(err.message || 'Login failed. Please check your credentials.')
+      }
     } finally {
       setLoading(false)
     }
+  }
+
+  const handle2FAVerify = async (token: string, backupCode?: string) => {
+    setTwoFaError('')
+    setLoading(true)
+
+    try {
+      const result = await login(email, password, tenantSlug || undefined, token || undefined, backupCode)
+      
+      // Should not require 2FA again if token is correct
+      if (result && 'requires_2fa' in result && result.requires_2fa) {
+        setTwoFaError('Invalid 2FA code. Please try again.')
+        setLoading(false)
+        return
+      }
+      
+      // Login success
+      navigate('/')
+    } catch (err: any) {
+      setTwoFaError(err.message || 'Invalid 2FA code. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handle2FACancel = () => {
+    setRequires2FA(false)
+    setPassword('')
+    setTwoFaError('')
+  }
+
+  // Show 2FA form if required
+  if (requires2FA) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+      }}>
+        <TwoFactorAuthLogin
+          onVerify={handle2FAVerify}
+          onCancel={handle2FACancel}
+          loading={loading}
+          error={twoFaError}
+        />
+      </div>
+    )
   }
 
   return (
@@ -142,8 +218,11 @@ export default function Login() {
           {loading ? 'Logging in...' : 'Login'}
         </button>
 
-        <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '12px', color: '#888' }}>
-          <p>Demo: Create a superuser in Django admin to login</p>
+        <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '14px', color: '#666' }}>
+          Don't have an account?{' '}
+          <Link to="/signup" style={{ color: '#007bff', textDecoration: 'none', fontWeight: '600' }}>
+            Sign up here
+          </Link>
         </div>
       </form>
     </div>

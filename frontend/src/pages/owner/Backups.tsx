@@ -169,7 +169,7 @@ export default function Backups() {
   ]
 
   return (
-    <div style={{ padding: '32px', maxWidth: '1600px', margin: '0 auto' }}>
+    <div style={{ width: '100%', padding: '30px' }}>
       {/* Header */}
       <div style={{
         display: 'flex',

@@ -15,6 +15,7 @@ from .module_activation_service import (
 )
 from core.models import Module, Tenant
 from core.owner_permissions import IsSuperAdmin
+from core.utils import get_tenant_from_request
 
 
 class TenantModuleViewSet(viewsets.ModelViewSet):
@@ -85,17 +86,31 @@ class TenantModuleViewSet(viewsets.ModelViewSet):
             
             module_codes = [mod['code'] for mod in recommended_modules]
             module_objects = Module.objects.filter(code__in=module_codes)
-            module_map = {mod.code: mod.id for mod in module_objects}
+            module_map = {mod.code: mod for mod in module_objects}
+            
+            # Import serializer to get full module details
+            from .serializers import ModuleSerializer
             
             recommended = []
             for mod in recommended_modules:
                 is_requested = mod['code'] in existing_modules
-                recommended.append({
-                    **mod,
-                    'module_id': module_map.get(mod['code']),  # Add module ID
+                module_obj = module_map.get(mod['code'])
+                
+                # Get full module details if available
+                module_data = mod.copy()  # Start with basic data
+                if module_obj:
+                    module_serializer = ModuleSerializer(module_obj)
+                    module_data.update(module_serializer.data)
+                    module_data['module_id'] = module_obj.id
+                else:
+                    module_data['module_id'] = None
+                
+                module_data.update({
                     'is_requested': is_requested,
                     'can_request': not is_requested
                 })
+                
+                recommended.append(module_data)
             
             return Response({
                 'recommended': recommended,
@@ -242,10 +257,14 @@ class TenantModuleViewSet(viewsets.ModelViewSet):
         
         tenant = self._get_tenant(request)
         if not tenant:
-            return Response(
-                {'error': 'Tenant not found'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            # Return empty/default summary instead of 404 for better UX
+            return Response({
+                'total_monthly': 0,
+                'total_yearly': 0,
+                'currency': 'USD',
+                'modules': [],
+                'breakdown': []
+            })
         
         summary = get_pricing_summary(tenant)
         return Response(summary)
@@ -268,9 +287,5 @@ class TenantModuleViewSet(viewsets.ModelViewSet):
     
     def _get_tenant(self, request):
         """Get tenant from request."""
-        if hasattr(request, 'tenant') and request.tenant:
-            return request.tenant
-        elif request.user.is_authenticated and hasattr(request.user, 'tenant'):
-            return request.user.tenant
-        return None
+        return get_tenant_from_request(request)
 

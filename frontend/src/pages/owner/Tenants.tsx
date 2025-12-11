@@ -78,6 +78,19 @@ export default function OwnerTenants() {
     },
   })
 
+  const approveTrialMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return api.post(`/owner/tenants/${id}/approve_trial/`)
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['owner-tenants'] })
+      toast.success(data.data?.message || 'Trial approved successfully')
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Failed to approve trial')
+    },
+  })
+
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
       return api.delete(`/owner/tenants/${id}/`)
@@ -101,6 +114,12 @@ export default function OwnerTenants() {
     activateMutation.mutate(tenant.id)
   }
 
+  const handleApproveTrial = (tenant: Tenant) => {
+    if (confirm(`Approve 7-day trial for "${tenant.company_name}"?`)) {
+      approveTrialMutation.mutate(tenant.id)
+    }
+  }
+
   const handleDelete = (tenant: Tenant) => {
     if (confirm(`⚠️ WARNING: This will permanently delete "${tenant.company_name}" and all their data. This action cannot be undone!\n\nAre you absolutely sure?`)) {
       deleteMutation.mutate(tenant.id)
@@ -118,7 +137,7 @@ export default function OwnerTenants() {
   }
 
   return (
-    <div style={{ padding: '32px', maxWidth: '1600px', margin: '0 auto' }}>
+    <div style={{ width: '100%', padding: '30px' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
         <div>
@@ -274,6 +293,16 @@ export default function OwnerTenants() {
                         >
                           📊 Details
                         </Button>
+                        {tenant.subscription_status === 'trial' && (
+                          <Button
+                            variant="outline"
+                            size="small"
+                            onClick={() => handleApproveTrial(tenant)}
+                            style={{ fontSize: '12px', padding: '6px 12px', color: '#3498db', borderColor: '#3498db' }}
+                          >
+                            ✓ Approve Trial
+                          </Button>
+                        )}
                         {tenant.subscription_status === 'suspended' ? (
                           <Button
                             variant="outline"
@@ -283,7 +312,7 @@ export default function OwnerTenants() {
                           >
                             Activate
                           </Button>
-                        ) : (
+                        ) : tenant.subscription_status !== 'trial' && (
                           <Button
                             variant="outline"
                             size="small"

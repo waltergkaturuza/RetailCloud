@@ -66,7 +66,7 @@ export default function BusinessCategorySelector({
     },
   })
 
-  // Fetch current tenant's category
+  // Fetch current tenant's category (only if authenticated and not in signup mode)
   const { data: currentCategoryData } = useQuery({
     queryKey: ['tenant-category'],
     queryFn: async () => {
@@ -77,6 +77,8 @@ export default function BusinessCategorySelector({
         return null
       }
     },
+    enabled: !compact, // Disable this query when in compact mode (used in signup)
+    retry: false, // Don't retry on 401 errors
   })
 
   // AI-powered category suggestions
@@ -93,10 +95,15 @@ export default function BusinessCategorySelector({
     enabled: showSuggestions && searchQuery.length > 2,
   })
 
-  // Update category mutation
+  // Update category mutation (only works when authenticated)
   const updateCategoryMutation = useMutation({
     mutationFn: async (data: { business_category_id: number; auto_activate_modules: boolean; custom_category_name?: string }) => {
       try {
+        // In compact mode (signup), don't call the API - just trigger the callback
+        if (compact) {
+          // Return a mock response for signup mode
+          return { data: { category: { id: data.business_category_id }, message: 'Category selected' } }
+        }
         const response = await api.post('/business-categories/tenant/category/', data)
         return response
       } catch (error: any) {
@@ -164,22 +171,24 @@ export default function BusinessCategorySelector({
     },
   })
 
+  // Ensure categories is always an array (define early for use in compact mode)
+  const categoriesArray = Array.isArray(categories) ? categories : []
+  const filteredCategories = searchQuery.trim() 
+    ? categoriesArray.filter((cat: BusinessCategory) =>
+        cat?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        cat?.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : categoriesArray
+
   // Set selected category from current tenant data
   useEffect(() => {
     if (currentCategoryData?.category) {
       setSelectedCategory(currentCategoryData.category)
-    } else if (selectedCategoryId && Array.isArray(categories) && categories.length > 0) {
-      const category = categories.find((c: BusinessCategory) => c.id === selectedCategoryId)
+    } else if (selectedCategoryId && categoriesArray.length > 0) {
+      const category = categoriesArray.find((c: BusinessCategory) => c.id === selectedCategoryId)
       if (category) setSelectedCategory(category)
     }
-  }, [currentCategoryData, selectedCategoryId, categories])
-
-  // Ensure categories is always an array
-  const categoriesArray = Array.isArray(categories) ? categories : []
-  const filteredCategories = categoriesArray.filter((cat: BusinessCategory) =>
-    cat?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    cat?.description?.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  }, [currentCategoryData, selectedCategoryId, categoriesArray])
 
   const handleCategorySelect = (category: BusinessCategory) => {
     // Prevent double-clicks or rapid selections
@@ -191,7 +200,13 @@ export default function BusinessCategorySelector({
     setSearchQuery('')
     setShowSuggestions(false)
 
-    // Update tenant's category
+    // In compact mode (signup), just call the callback without API call
+    if (compact && onCategorySelect) {
+      onCategorySelect(category.id)
+      return
+    }
+
+    // Update tenant's category (only when authenticated)
     updateCategoryMutation.mutate({
       business_category_id: category.id,
       auto_activate_modules: autoActivateModules,
@@ -201,44 +216,161 @@ export default function BusinessCategorySelector({
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value)
-    setShowSuggestions(value.length > 2)
+    // Show dropdown when focused, or when searching
+    setShowSuggestions(true)
   }
 
   if (compact) {
+    // Show selected category if any
+    const displayCategory = selectedCategory || (selectedCategoryId && categoriesArray.find((c: BusinessCategory) => c.id === selectedCategoryId))
+    
     return (
       <div style={{ position: 'relative' }}>
-        <input
-          type="text"
-          placeholder="Search business category..."
-          value={searchQuery}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          onFocus={() => setShowSuggestions(true)}
-          className="input"
-          style={{ width: '100%' }}
-        />
-        {showSuggestions && (
-          <div className="dropdown" style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1000, maxHeight: '300px', overflowY: 'auto' }}>
-            {suggestions?.suggestions?.map((rec: CategoryRecommendation) => (
-              <div
-                key={rec.category.id}
-                onClick={() => handleCategorySelect(rec.category)}
-                style={{ padding: '10px', cursor: 'pointer', borderBottom: '1px solid #eee' }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '20px' }}>{rec.category.icon}</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: '500' }}>{rec.category.name}</div>
-                    <div style={{ fontSize: '12px', color: '#666' }}>{rec.category.description}</div>
-                  </div>
-                  {rec.relevance_score > 0 && (
-                    <span style={{ fontSize: '12px', color: '#27ae60' }}>
-                      {Math.round((rec.relevance_score / 5) * 100)}% match
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
+        {displayCategory ? (
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '10px', 
+            padding: '10px 12px',
+            background: '#f8f9fa',
+            borderRadius: '6px',
+            border: '1px solid #dee2e6',
+            marginBottom: '8px'
+          }}>
+            <span style={{ fontSize: '20px' }}>{displayCategory.icon}</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: '500', color: '#2c3e50' }}>{displayCategory.name}</div>
+              <div style={{ fontSize: '12px', color: '#6c757d' }}>{displayCategory.description}</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedCategory(null)
+                setSearchQuery('')
+                setShowSuggestions(true)
+                if (onCategorySelect) {
+                  onCategorySelect(null as any)
+                }
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#dc3545',
+                cursor: 'pointer',
+                fontSize: '18px',
+                padding: '4px 8px'
+              }}
+            >
+              ×
+            </button>
           </div>
+        ) : (
+          <>
+            <input
+              type="text"
+              placeholder="Search business category..."
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              onFocus={() => setShowSuggestions(true)}
+              className="input"
+              style={{ width: '100%' }}
+            />
+            {(showSuggestions || isLoading) && (
+              <div 
+                className="dropdown" 
+                style={{ 
+                  position: 'absolute', 
+                  top: '100%', 
+                  left: 0, 
+                  right: 0, 
+                  zIndex: 1000, 
+                  maxHeight: '300px', 
+                  overflowY: 'auto',
+                  background: 'white',
+                  border: '1px solid #dee2e6',
+                  borderRadius: '6px',
+                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                  marginTop: '4px'
+                }}
+              >
+                {isLoading ? (
+                  <div style={{ padding: '20px', textAlign: 'center', color: '#6c757d' }}>
+                    Loading categories...
+                  </div>
+                ) : searchQuery.length > 2 && suggestions?.suggestions?.length > 0 ? (
+                  <>
+                    <div style={{ padding: '8px 12px', fontSize: '12px', fontWeight: '600', color: '#6c757d', borderBottom: '1px solid #dee2e6', background: '#f8f9fa' }}>
+                      AI Suggestions
+                    </div>
+                    {suggestions.suggestions.map((rec: CategoryRecommendation) => (
+                      <div
+                        key={rec.category.id}
+                        onClick={() => handleCategorySelect(rec.category)}
+                        style={{ 
+                          padding: '12px', 
+                          cursor: 'pointer', 
+                          borderBottom: '1px solid #eee',
+                          transition: 'background 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ fontSize: '20px' }}>{rec.category.icon}</span>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: '500' }}>{rec.category.name}</div>
+                            <div style={{ fontSize: '12px', color: '#666' }}>{rec.category.description}</div>
+                          </div>
+                          {rec.relevance_score > 0 && (
+                            <span style={{ fontSize: '12px', color: '#27ae60', fontWeight: '500' }}>
+                              {Math.round((rec.relevance_score / 5) * 100)}%
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                ) : categoriesArray.length > 0 ? (
+                  <>
+                    <div style={{ padding: '8px 12px', fontSize: '12px', fontWeight: '600', color: '#6c757d', borderBottom: '1px solid #dee2e6', background: '#f8f9fa' }}>
+                      {searchQuery.trim() ? `Search Results (${filteredCategories.length})` : `All Categories (${categoriesArray.length})`}
+                    </div>
+                    {(searchQuery.trim() ? filteredCategories : categoriesArray).slice(0, 10).map((category: BusinessCategory) => (
+                      <div
+                        key={category.id}
+                        onClick={() => handleCategorySelect(category)}
+                        style={{ 
+                          padding: '12px', 
+                          cursor: 'pointer', 
+                          borderBottom: '1px solid #eee',
+                          transition: 'background 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ fontSize: '20px' }}>{category.icon}</span>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: '500' }}>{category.name}</div>
+                            <div style={{ fontSize: '12px', color: '#666' }}>{category.description}</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {categoriesArray.length > 10 && (
+                      <div style={{ padding: '8px 12px', fontSize: '12px', color: '#6c757d', textAlign: 'center', borderTop: '1px solid #dee2e6', background: '#f8f9fa' }}>
+                        Type to search for more...
+                      </div>
+                    )}
+                  </>
+                ) : searchQuery.length > 2 && (!suggestions?.suggestions || suggestions.suggestions.length === 0) ? (
+                  <div style={{ padding: '20px', textAlign: 'center', color: '#6c757d' }}>
+                    No categories found. Try a different search term.
+                  </div>
+                ) : null}
+              </div>
+            )}
+          </>
         )}
       </div>
     )

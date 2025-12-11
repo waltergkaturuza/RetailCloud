@@ -225,7 +225,7 @@ export default function SystemHealth() {
   const currentMetric = currentMetrics?.[selectedMetric] as HealthMetric | undefined
 
   return (
-    <div style={{ padding: '32px', maxWidth: '1800px', margin: '0 auto' }}>
+    <div style={{ width: '100%', padding: '30px' }}>
       {/* Header */}
       <div style={{
         display: 'flex',

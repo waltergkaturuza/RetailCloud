@@ -39,7 +39,7 @@ ChartJS.register(
 
 export default function Analytics() {
   const [period, setPeriod] = useState<number>(30) // days
-  const [activeTab, setActiveTab] = useState<'overview' | 'revenue' | 'tenants' | 'usage' | 'industry'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'revenue' | 'subscription' | 'geographic' | 'contributors' | 'tenants' | 'usage' | 'industry'>('overview')
 
   const { data: analytics, isLoading } = useQuery({
     queryKey: ['owner-analytics', period],
@@ -255,7 +255,7 @@ export default function Analytics() {
   }
 
   return (
-    <div style={{ padding: '32px', maxWidth: '1800px', margin: '0 auto' }}>
+    <div style={{ width: '100%', padding: '30px' }}>
       {/* Header */}
       <div style={{
         display: 'flex',
@@ -302,6 +302,9 @@ export default function Analytics() {
         {[
           { id: 'overview', label: '📊 Overview' },
           { id: 'revenue', label: '💰 Revenue' },
+          { id: 'subscription', label: '💳 Subscription Revenue' },
+          { id: 'geographic', label: '🌍 Geographic' },
+          { id: 'contributors', label: '⭐ Major Contributors' },
           { id: 'tenants', label: '🏢 Tenants' },
           { id: 'usage', label: '📱 Usage' },
           { id: 'industry', label: '🏭 Industry' },
@@ -417,6 +420,15 @@ export default function Analytics() {
                   </div>
                   <div style={{ fontSize: '12px', color: '#7f8c8d', marginTop: '4px' }}>
                     Avg: {formatCurrency(analytics.revenue?.average_daily || 0)}/day
+                  </div>
+                </Card>
+                <Card>
+                  <div style={{ fontSize: '14px', color: '#7f8c8d', marginBottom: '8px' }}>Subscription Revenue</div>
+                  <div style={{ fontSize: '32px', fontWeight: '700', color: '#9b59b6' }}>
+                    {formatCurrency(analytics.subscription_revenue?.total_revenue || 0)}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#7f8c8d', marginTop: '4px' }}>
+                    MRR: {formatCurrency(analytics.subscription_revenue?.mrr_estimate || 0)}
                   </div>
                 </Card>
                 <Card>
@@ -664,6 +676,327 @@ export default function Analytics() {
                           </td>
                           <td style={{ padding: '12px', textAlign: 'right', color: '#2c3e50' }}>
                             {formatCurrency(industry.avg_revenue_per_tenant)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {/* Subscription Revenue Tab */}
+          {activeTab === 'subscription' && (
+            <div style={{ display: 'grid', gap: '24px' }}>
+              {/* Key Metrics */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '16px',
+                marginBottom: '24px',
+              }}>
+                <Card style={{ padding: '16px' }}>
+                  <div style={{ fontSize: '12px', color: '#7f8c8d', marginBottom: '6px' }}>Total Subscription Revenue</div>
+                  <div style={{ fontSize: '24px', fontWeight: '700', color: '#2c3e50' }}>
+                    {formatCurrency(analytics.subscription_revenue?.total_revenue || 0)}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#7f8c8d', marginTop: '2px' }}>
+                    Avg: {formatCurrency(analytics.subscription_revenue?.average_daily || 0)}/day
+                  </div>
+                </Card>
+                <Card style={{ padding: '16px' }}>
+                  <div style={{ fontSize: '12px', color: '#7f8c8d', marginBottom: '6px' }}>Monthly Recurring Revenue (MRR)</div>
+                  <div style={{ fontSize: '24px', fontWeight: '700', color: '#27ae60' }}>
+                    {formatCurrency(analytics.subscription_revenue?.mrr_estimate || 0)}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#7f8c8d', marginTop: '2px' }}>
+                    Estimated monthly
+                  </div>
+                </Card>
+                <Card style={{ padding: '16px' }}>
+                  <div style={{ fontSize: '12px', color: '#7f8c8d', marginBottom: '6px' }}>Outstanding Invoices</div>
+                  <div style={{ fontSize: '24px', fontWeight: '700', color: '#e74c3c' }}>
+                    {formatCurrency(analytics.subscription_revenue?.outstanding_invoices || 0)}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#7f8c8d', marginTop: '2px' }}>
+                    Unpaid invoices
+                  </div>
+                </Card>
+              </div>
+
+              {/* Daily Subscription Revenue Chart */}
+              <Card style={{ padding: '16px' }}>
+                <h3 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: '600', color: '#2c3e50' }}>
+                  Daily Subscription Revenue
+                </h3>
+                <div style={{ height: '250px', position: 'relative' }}>
+                  <Line 
+                    data={{
+                      labels: analytics.subscription_revenue?.daily?.labels || [],
+                      datasets: [{
+                        label: 'Subscription Revenue',
+                        data: analytics.subscription_revenue?.daily?.values || [],
+                        borderColor: '#9b59b6',
+                        backgroundColor: 'rgba(155, 89, 182, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 2,
+                      }]
+                    }} 
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: { display: false }
+                      },
+                      scales: {
+                        y: { beginAtZero: true }
+                      }
+                    }} 
+                  />
+                </div>
+              </Card>
+
+              {/* Top Contributors by Subscription */}
+              <Card style={{ padding: '16px' }}>
+                <h3 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: '600', color: '#2c3e50' }}>
+                  Top Contributors by Subscription Payments
+                </h3>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid #ecf0f1' }}>
+                        <th style={{ padding: '10px', textAlign: 'left', color: '#7f8c8d', fontWeight: '600' }}>#</th>
+                        <th style={{ padding: '10px', textAlign: 'left', color: '#7f8c8d', fontWeight: '600' }}>Tenant</th>
+                        <th style={{ padding: '10px', textAlign: 'right', color: '#7f8c8d', fontWeight: '600' }}>Revenue</th>
+                        <th style={{ padding: '10px', textAlign: 'left', color: '#7f8c8d', fontWeight: '600' }}>Location</th>
+                        <th style={{ padding: '10px', textAlign: 'left', color: '#7f8c8d', fontWeight: '600' }}>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(analytics.subscription_revenue?.top_contributors || []).map((contributor: any, index: number) => (
+                        <tr key={contributor.id} style={{ borderBottom: '1px solid #ecf0f1' }}>
+                          <td style={{ padding: '10px', color: '#2c3e50' }}>{index + 1}</td>
+                          <td style={{ padding: '10px', color: '#2c3e50', fontWeight: '500' }}>{contributor.name}</td>
+                          <td style={{ padding: '10px', textAlign: 'right', color: '#2c3e50', fontWeight: '600' }}>
+                            {formatCurrency(contributor.subscription_revenue)}
+                          </td>
+                          <td style={{ padding: '10px', color: '#2c3e50', fontSize: '12px' }}>
+                            {contributor.city ? `${contributor.city}, ` : ''}{contributor.country || 'Unknown'}
+                          </td>
+                          <td style={{ padding: '10px' }}>
+                            <span style={{
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              fontSize: '11px',
+                              background: contributor.status === 'active' ? '#d4edda' : '#fff3cd',
+                              color: contributor.status === 'active' ? '#155724' : '#856404'
+                            }}>
+                              {contributor.status || 'N/A'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {/* Geographic Tab */}
+          {activeTab === 'geographic' && (
+            <div style={{ display: 'grid', gap: '24px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                {/* Country Distribution */}
+                <Card style={{ padding: '16px' }}>
+                  <h3 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: '600', color: '#2c3e50' }}>
+                    Tenants by Country
+                  </h3>
+                  <div style={{ height: '300px', position: 'relative' }}>
+                    <Doughnut
+                      data={{
+                        labels: Object.keys(analytics.geographic?.country_distribution || {}),
+                        datasets: [{
+                          data: Object.values(analytics.geographic?.country_distribution || {}),
+                          backgroundColor: [
+                            '#3498db', '#27ae60', '#f39c12', '#e74c3c', '#9b59b6',
+                            '#1abc9c', '#34495e', '#e67e22', '#16a085', '#c0392b'
+                          ],
+                        }]
+                      }}
+                      options={{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                          legend: { position: 'bottom', labels: { padding: 8, font: { size: 11 } } }
+                        }
+                      }}
+                    />
+                  </div>
+                </Card>
+
+                {/* Top Cities */}
+                <Card style={{ padding: '16px' }}>
+                  <h3 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: '600', color: '#2c3e50' }}>
+                    Top Cities
+                  </h3>
+                  <div style={{ overflowY: 'auto', maxHeight: '300px' }}>
+                    {(analytics.geographic?.city_distribution || []).map((city: any, index: number) => (
+                      <div key={index} style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        padding: '10px',
+                        borderBottom: '1px solid #ecf0f1'
+                      }}>
+                        <div>
+                          <div style={{ fontWeight: '500', color: '#2c3e50', fontSize: '13px' }}>
+                            {city.city}
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#7f8c8d' }}>{city.country}</div>
+                        </div>
+                        <div style={{ fontWeight: '600', color: '#3498db', fontSize: '14px' }}>
+                          {city.count}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              </div>
+
+              {/* Revenue by Country */}
+              <Card style={{ padding: '16px' }}>
+                <h3 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: '600', color: '#2c3e50' }}>
+                  Revenue by Country
+                </h3>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid #ecf0f1' }}>
+                        <th style={{ padding: '10px', textAlign: 'left', color: '#7f8c8d', fontWeight: '600' }}>Country</th>
+                        <th style={{ padding: '10px', textAlign: 'right', color: '#7f8c8d', fontWeight: '600' }}>Tenants</th>
+                        <th style={{ padding: '10px', textAlign: 'right', color: '#7f8c8d', fontWeight: '600' }}>Total Revenue</th>
+                        <th style={{ padding: '10px', textAlign: 'right', color: '#7f8c8d', fontWeight: '600' }}>Avg per Tenant</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(analytics.geographic?.country_revenue || []).map((country: any, index: number) => (
+                        <tr key={index} style={{ borderBottom: '1px solid #ecf0f1' }}>
+                          <td style={{ padding: '10px', color: '#2c3e50', fontWeight: '500' }}>{country.country}</td>
+                          <td style={{ padding: '10px', textAlign: 'right', color: '#2c3e50' }}>{country.tenant_count}</td>
+                          <td style={{ padding: '10px', textAlign: 'right', color: '#2c3e50', fontWeight: '600' }}>
+                            {formatCurrency(country.revenue)}
+                          </td>
+                          <td style={{ padding: '10px', textAlign: 'right', color: '#2c3e50' }}>
+                            {formatCurrency(country.revenue / country.tenant_count)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {/* Major Contributors Tab */}
+          {activeTab === 'contributors' && (
+            <div style={{ display: 'grid', gap: '24px' }}>
+              {/* Summary Cards */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '16px',
+              }}>
+                <Card style={{ padding: '16px' }}>
+                  <div style={{ fontSize: '12px', color: '#7f8c8d', marginBottom: '6px' }}>Total Subscription Revenue</div>
+                  <div style={{ fontSize: '22px', fontWeight: '700', color: '#2c3e50' }}>
+                    {formatCurrency(analytics.contributors?.total_subscription_revenue || 0)}
+                  </div>
+                </Card>
+                <Card style={{ padding: '16px' }}>
+                  <div style={{ fontSize: '12px', color: '#7f8c8d', marginBottom: '6px' }}>Total Sales Revenue</div>
+                  <div style={{ fontSize: '22px', fontWeight: '700', color: '#27ae60' }}>
+                    {formatCurrency(analytics.contributors?.total_sales_revenue || 0)}
+                  </div>
+                </Card>
+              </div>
+
+              {/* Combined Top Contributors */}
+              <Card style={{ padding: '16px' }}>
+                <h3 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: '600', color: '#2c3e50' }}>
+                  Top Contributors (Combined Score)
+                </h3>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid #ecf0f1' }}>
+                        <th style={{ padding: '10px', textAlign: 'left', color: '#7f8c8d', fontWeight: '600' }}>#</th>
+                        <th style={{ padding: '10px', textAlign: 'left', color: '#7f8c8d', fontWeight: '600' }}>Tenant</th>
+                        <th style={{ padding: '10px', textAlign: 'right', color: '#7f8c8d', fontWeight: '600' }}>Subscription Revenue</th>
+                        <th style={{ padding: '10px', textAlign: 'right', color: '#7f8c8d', fontWeight: '600' }}>Sales Revenue</th>
+                        <th style={{ padding: '10px', textAlign: 'right', color: '#7f8c8d', fontWeight: '600' }}>Combined Score</th>
+                        <th style={{ padding: '10px', textAlign: 'left', color: '#7f8c8d', fontWeight: '600' }}>Location</th>
+                        <th style={{ padding: '10px', textAlign: 'left', color: '#7f8c8d', fontWeight: '600' }}>Industry</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(analytics.contributors?.combined_top_contributors || []).map((contributor: any, index: number) => (
+                        <tr key={contributor.id} style={{ borderBottom: '1px solid #ecf0f1' }}>
+                          <td style={{ padding: '10px', color: '#2c3e50' }}>{index + 1}</td>
+                          <td style={{ padding: '10px', color: '#2c3e50', fontWeight: '500' }}>{contributor.name}</td>
+                          <td style={{ padding: '10px', textAlign: 'right', color: '#9b59b6', fontWeight: '600' }}>
+                            {formatCurrency(contributor.subscription_revenue)}
+                          </td>
+                          <td style={{ padding: '10px', textAlign: 'right', color: '#27ae60', fontWeight: '600' }}>
+                            {formatCurrency(contributor.sales_revenue)}
+                          </td>
+                          <td style={{ padding: '10px', textAlign: 'right', color: '#2c3e50', fontWeight: '700' }}>
+                            {formatCurrency(contributor.combined_score)}
+                          </td>
+                          <td style={{ padding: '10px', color: '#2c3e50', fontSize: '12px' }}>
+                            {contributor.city ? `${contributor.city}, ` : ''}{contributor.country || 'Unknown'}
+                          </td>
+                          <td style={{ padding: '10px', color: '#2c3e50', fontSize: '12px' }}>
+                            {contributor.industry || 'N/A'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+
+              {/* By Subscription Payments */}
+              <Card style={{ padding: '16px' }}>
+                <h3 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: '600', color: '#2c3e50' }}>
+                  Top Contributors by Subscription Payments
+                </h3>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid #ecf0f1' }}>
+                        <th style={{ padding: '10px', textAlign: 'left', color: '#7f8c8d', fontWeight: '600' }}>#</th>
+                        <th style={{ padding: '10px', textAlign: 'left', color: '#7f8c8d', fontWeight: '600' }}>Tenant</th>
+                        <th style={{ padding: '10px', textAlign: 'right', color: '#7f8c8d', fontWeight: '600' }}>Amount</th>
+                        <th style={{ padding: '10px', textAlign: 'right', color: '#7f8c8d', fontWeight: '600' }}>% of Total</th>
+                        <th style={{ padding: '10px', textAlign: 'left', color: '#7f8c8d', fontWeight: '600' }}>Location</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(analytics.contributors?.by_subscription_payments || []).map((contributor: any, index: number) => (
+                        <tr key={contributor.id} style={{ borderBottom: '1px solid #ecf0f1' }}>
+                          <td style={{ padding: '10px', color: '#2c3e50' }}>{index + 1}</td>
+                          <td style={{ padding: '10px', color: '#2c3e50', fontWeight: '500' }}>{contributor.name}</td>
+                          <td style={{ padding: '10px', textAlign: 'right', color: '#2c3e50', fontWeight: '600' }}>
+                            {formatCurrency(contributor.amount)}
+                          </td>
+                          <td style={{ padding: '10px', textAlign: 'right', color: '#3498db', fontWeight: '600' }}>
+                            {contributor.percentage}%
+                          </td>
+                          <td style={{ padding: '10px', color: '#2c3e50', fontSize: '12px' }}>
+                            {contributor.city ? `${contributor.city}, ` : ''}{contributor.country || 'Unknown'}
                           </td>
                         </tr>
                       ))}

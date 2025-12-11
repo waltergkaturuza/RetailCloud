@@ -10,12 +10,13 @@ import Button from '../components/ui/Button'
 import BusinessCategorySelector from '../components/BusinessCategorySelector'
 import ModuleActivationList from '../components/ModuleActivationList'
 import SubscriptionManagement from '../components/SubscriptionManagement'
+import SecuritySettings from '../components/SecuritySettings'
 import toast from 'react-hot-toast'
 
 export default function Settings() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
-  const [activeTab, setActiveTab] = useState<'general' | 'category' | 'modules' | 'branches' | 'subscription' | 'branding'>('general')
+  const [activeTab, setActiveTab] = useState<'general' | 'category' | 'modules' | 'branches' | 'subscription' | 'branding' | 'security'>('general')
 
   // Fetch current tenant category
   const { data: categoryData, isLoading: categoryLoading } = useQuery({
@@ -66,8 +67,8 @@ export default function Settings() {
   const recommendedModules = recommendedModulesData?.recommended || []
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
-      <div style={{ marginBottom: '32px' }}>
+    <div style={{ width: '100%' }}>
+      <div style={{ marginBottom: '24px' }}>
         <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '700', color: '#2c3e50' }}>
           Settings
         </h1>
@@ -92,6 +93,7 @@ export default function Settings() {
           { id: 'branches', label: 'Branches', icon: '🏢' },
           { id: 'subscription', label: 'Subscription & Billing', icon: '💳' },
           { id: 'branding', label: 'Branding', icon: '🎨' },
+          { id: 'security', label: 'Security', icon: '🔐' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -303,6 +305,11 @@ export default function Settings() {
       {/* Branding */}
       {activeTab === 'branding' && (
         <BrandingSettings />
+      )}
+
+      {/* Security */}
+      {activeTab === 'security' && (
+        <SecuritySettings />
       )}
     </div>
   )

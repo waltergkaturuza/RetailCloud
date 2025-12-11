@@ -147,7 +147,7 @@ export default function OwnerModuleActivations() {
   }) || []
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
+    <div style={{ width: '100%', padding: '30px' }}>
       <div style={{ marginBottom: '32px' }}>
         <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '700', color: '#2c3e50' }}>
           Module Activation Management

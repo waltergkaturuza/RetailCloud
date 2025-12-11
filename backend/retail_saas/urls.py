@@ -27,9 +27,13 @@ urlpatterns = [
     path('api/receipts/', include('core.receipt_urls')),
     path('api/core/', include('core.branch_urls')),
     path('api/core/', include('core.branding_urls')),
+    path('api/core/', include('core.pricing_urls')),
+    path('api/core/', include('core.module_urls')),
     path('api/industry/', include('core.industry_urls')),
     path('api/business-categories/', include('core.business_category_urls')),
+    path('api/tenant/', include('core.tenant_signup_urls')),
     path('api/owner/', include('core.owner_urls')),
+    path('api/auth/', include('core.email_verification_urls')),
 ]
 
 if settings.DEBUG:

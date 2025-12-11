@@ -9,8 +9,11 @@ from django.db.models import Sum, Count, Q, Avg
 from django.utils import timezone
 from django.db import transaction
 from django.contrib.auth import get_user_model
+from django.contrib.auth.hashers import make_password
 from django.conf import settings
 from datetime import datetime, timedelta
+import secrets
+import string
 from .owner_permissions import IsSuperAdmin
 from .owner_models import (
     SystemSettings, OwnerAuditLog, SystemHealthMetric,
@@ -107,6 +110,25 @@ class OwnerDashboardView(views.APIView):
             for item in industry_dist
         }
         
+        # Pending trial requests (trial status tenants that need approval)
+        pending_trial_requests = Tenant.objects.filter(
+            subscription_status='trial'
+        ).select_related('business_category').order_by('-created_at')[:10]
+        
+        pending_trials_list = [
+            {
+                'id': t.id,
+                'company_name': t.company_name,
+                'email': t.email,
+                'contact_person': t.contact_person,
+                'phone': t.phone,
+                'created_at': t.created_at.isoformat() if t.created_at else None,
+                'trial_ends_at': t.trial_ends_at.isoformat() if t.trial_ends_at else None,
+                'business_category': t.business_category.name if t.business_category else None,
+            }
+            for t in pending_trial_requests
+        ]
+        
         data = {
             'total_tenants': total_tenants,
             'active_tenants': active_tenants,
@@ -122,6 +144,8 @@ class OwnerDashboardView(views.APIView):
             'recent_audit_logs': OwnerAuditLogSerializer(recent_logs, many=True).data,
             'top_tenants_by_sales': top_tenants_list,
             'industry_distribution': industry_distribution,
+            'pending_trial_requests': pending_trials_list,
+            'pending_trial_count': len(pending_trials_list),
         }
         
         return Response(data)
@@ -202,21 +226,100 @@ class OwnerTenantViewSet(viewsets.ModelViewSet):
     
     @transaction.atomic
     def create(self, request):
-        """Create a new tenant."""
+        """Create a new tenant and automatically create tenant admin user."""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         tenant = serializer.save()
         
-        log_audit(
-            request.user,
-            'tenant_create',
-            f"Created tenant: {tenant.company_name}",
-            tenant=tenant,
-            metadata={'tenant_id': tenant.id, 'tenant_name': tenant.company_name},
-            request=request
-        )
+        admin_user = None
+        admin_username = None
+        admin_email = None
+        admin_password = None
         
-        return Response(TenantDetailSerializer(tenant).data, status=status.HTTP_201_CREATED)
+        try:
+            # Generate a secure random password for the tenant admin
+            password_length = 12
+            alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+            admin_password = ''.join(secrets.choice(alphabet) for _ in range(password_length))
+            
+            # Create tenant admin user
+            # Use tenant email or generate username from tenant slug
+            admin_email = tenant.email
+            admin_username = tenant.slug + '_admin'
+            
+            # Ensure username is unique
+            base_username = admin_username
+            counter = 1
+            while User.objects.filter(username=admin_username).exists():
+                admin_username = f"{base_username}_{counter}"
+                counter += 1
+            
+            # Extract first and last name from contact_person if available
+            contact_parts = tenant.contact_person.split(' ', 1) if tenant.contact_person else ['', '']
+            first_name = contact_parts[0] if len(contact_parts) > 0 else 'Admin'
+            last_name = contact_parts[1] if len(contact_parts) > 1 else tenant.company_name
+            
+            admin_user = User.objects.create_user(
+                username=admin_username,
+                email=admin_email,
+                password=admin_password,
+                first_name=first_name,
+                last_name=last_name,
+                phone=tenant.phone,
+                role='tenant_admin',
+                tenant=tenant,
+                is_active=True,
+                is_staff=True,
+            )
+            
+            log_audit(
+                request.user,
+                'tenant_create',
+                f"Created tenant: {tenant.company_name}",
+                tenant=tenant,
+                metadata={
+                    'tenant_id': tenant.id, 
+                    'tenant_name': tenant.company_name,
+                    'admin_user_id': admin_user.id,
+                    'admin_username': admin_username
+                },
+                request=request
+            )
+        except Exception as e:
+            # Log the error but don't fail tenant creation
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to create admin user for tenant {tenant.id}: {str(e)}", exc_info=True)
+            
+            log_audit(
+                request.user,
+                'tenant_create',
+                f"Created tenant: {tenant.company_name} (Admin user creation failed: {str(e)})",
+                tenant=tenant,
+                metadata={
+                    'tenant_id': tenant.id, 
+                    'tenant_name': tenant.company_name,
+                    'admin_user_creation_error': str(e)
+                },
+                request=request
+            )
+        
+        # Include admin credentials in response if user was created
+        response_data = TenantDetailSerializer(tenant).data
+        if admin_user and admin_username and admin_password:
+            response_data['admin_credentials'] = {
+                'username': admin_username,
+                'email': admin_email,
+                'password': admin_password,
+                'message': 'Tenant admin user created successfully. Please save these credentials securely.'
+            }
+        else:
+            response_data['admin_credentials'] = {
+                'error': 'Failed to create admin user automatically. Please create one manually.',
+                'message': 'Tenant created but admin user creation failed. Please create an admin user manually.'
+            }
+        
+        return Response(response_data, status=status.HTTP_201_CREATED)
     
     @transaction.atomic
     def destroy(self, request, *args, **kwargs):
@@ -270,6 +373,63 @@ class OwnerTenantViewSet(viewsets.ModelViewSet):
         )
         
         return Response({'status': 'active'})
+    
+    @action(detail=True, methods=['post'])
+    def approve_trial(self, request, pk=None):
+        """Approve a trial request and activate the tenant."""
+        tenant = self.get_object()
+        
+        if tenant.subscription_status != 'trial':
+            return Response(
+                {'error': f'Tenant is not in trial status. Current status: {tenant.subscription_status}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        tenant.subscription_status = 'active'
+        trial_end = timezone.now() + timedelta(days=7)  # Extend trial for 7 days
+        tenant.trial_ends_at = trial_end
+        tenant.save()
+        
+        # Update subscription if exists
+        if hasattr(tenant, 'subscription'):
+            subscription = tenant.subscription
+            subscription.status = 'active'
+            subscription.current_period_end = trial_end
+            subscription.save()
+        
+        # Send trial approval email to tenant admin
+        try:
+            admin_user = tenant.users.filter(role='tenant_admin').first()
+            if admin_user:
+                from core.email_service import send_trial_approval_email
+                from django.conf import settings
+                login_url = f"{getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')}/login"
+                send_trial_approval_email(
+                    user_email=admin_user.email,
+                    company_name=tenant.company_name,
+                    trial_end_date=trial_end.strftime('%B %d, %Y'),
+                    login_url=login_url
+                )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to send trial approval email: {str(e)}", exc_info=True)
+        
+        log_audit(
+            request.user,
+            'trial_approve',
+            f"Approved trial for tenant: {tenant.company_name}",
+            tenant=tenant,
+            request=request
+        )
+        
+        return Response({
+            'status': 'trial approved',
+            'new_status': 'active',
+            'trial_ends_at': tenant.trial_ends_at.isoformat(),
+            'trial_end_date': trial_end.strftime('%B %d, %Y'),
+            'message': f'Trial approved. Tenant can now access the system until {trial_end.strftime("%B %d, %Y")}.'
+        }, status=status.HTTP_200_OK)
     
     @action(detail=True, methods=['get'])
     def detailed_stats(self, request, pk=None):
@@ -808,13 +968,25 @@ class AnalyticsView(views.APIView):
         # Transaction Analytics
         transaction_data = self._get_transaction_analytics(start_date, end_date, period)
         
+        # Subscription Revenue Analytics
+        subscription_revenue_data = self._get_subscription_revenue_analytics(start_date, end_date, period)
+        
+        # Geographic Analytics
+        geographic_data = self._get_geographic_analytics()
+        
+        # Major Contributors
+        contributors_data = self._get_major_contributors(start_date, end_date)
+        
         return Response({
             'revenue': revenue_data,
+            'subscription_revenue': subscription_revenue_data,
             'tenants': tenant_data,
             'growth': growth_data,
             'usage': usage_data,
             'industry': industry_data,
             'transactions': transaction_data,
+            'geographic': geographic_data,
+            'contributors': contributors_data,
             'period': period,
             'start_date': start_date.isoformat(),
             'end_date': end_date.isoformat(),
@@ -1026,6 +1198,252 @@ class AnalyticsView(views.APIView):
         industry_stats.sort(key=lambda x: x['revenue'], reverse=True)
         
         return industry_stats[:10]  # Top 10 industries
+    
+    def _get_subscription_revenue_analytics(self, start_date, end_date, period):
+        """Get subscription revenue analytics (payments, invoices)."""
+        from subscriptions.models import Payment, Invoice
+        
+        # Total subscription revenue from payments
+        payments = Payment.objects.filter(
+            paid_at__gte=start_date, paid_at__lte=end_date, status='completed'
+        )
+        
+        total_subscription_revenue = payments.aggregate(
+            total=Sum('amount')
+        )['total'] or 0
+        
+        # Revenue by currency
+        revenue_by_currency = payments.values('currency').annotate(
+            total=Sum('amount')
+        )
+        
+        currency_breakdown = {
+            item['currency'] or 'USD': float(item['total'] or 0)
+            for item in revenue_by_currency
+        }
+        
+        # Daily subscription revenue
+        daily_subscription_revenue = []
+        daily_labels = []
+        current_date = start_date
+        while current_date <= end_date:
+            date_start = timezone.make_aware(datetime.combine(current_date.date(), datetime.min.time()))
+            date_end = timezone.make_aware(datetime.combine(current_date.date(), datetime.max.time()))
+            
+            day_payments = payments.filter(paid_at__gte=date_start, paid_at__lte=date_end)
+            day_total = day_payments.aggregate(total=Sum('amount'))['total'] or 0
+            
+            daily_subscription_revenue.append(float(day_total))
+            daily_labels.append(current_date.strftime('%Y-%m-%d'))
+            current_date += timedelta(days=1)
+        
+        # Outstanding invoices (unpaid)
+        outstanding_invoices = Invoice.objects.filter(
+            status='pending', due_date__lte=end_date
+        ).aggregate(total=Sum('total_amount'))['total'] or 0
+        
+        # Payment methods breakdown
+        payment_methods = payments.values('payment_method').annotate(
+            total=Sum('amount'), count=Count('id')
+        )
+        
+        payment_method_breakdown = {
+            item['payment_method'] or 'Unknown': {
+                'amount': float(item['total'] or 0),
+                'count': item['count']
+            }
+            for item in payment_methods
+        }
+        
+        # Top tenants by subscription payments
+        top_tenants_payments = Tenant.objects.annotate(
+            total_payments=Sum(
+                'subscription__payments__amount',
+                filter=Q(subscription__payments__paid_at__gte=start_date, 
+                        subscription__payments__paid_at__lte=end_date,
+                        subscription__payments__status='completed')
+            )
+        ).filter(total_payments__gt=0).order_by('-total_payments')[:10]
+        
+        top_contributors = [
+            {
+                'id': t.id,
+                'name': t.company_name,
+                'subscription_revenue': float(t.total_payments or 0),
+                'status': t.subscription_status,
+                'country': t.country,
+                'city': t.city
+            }
+            for t in top_tenants_payments
+        ]
+        
+        # Monthly recurring revenue (MRR) estimate
+        active_subscriptions = Subscription.objects.filter(status='active')
+        mrr_estimate = 0
+        for sub in active_subscriptions:
+            if sub.billing_cycle == 'monthly':
+                mrr_estimate += float(sub.package.price_monthly or 0)
+            elif sub.billing_cycle == 'yearly':
+                mrr_estimate += float(sub.package.price_yearly or 0) / 12
+        
+        return {
+            'total_revenue': float(total_subscription_revenue),
+            'outstanding_invoices': float(outstanding_invoices),
+            'mrr_estimate': round(mrr_estimate, 2),
+            'currency_breakdown': currency_breakdown,
+            'daily': {
+                'labels': daily_labels,
+                'values': daily_subscription_revenue
+            },
+            'payment_methods': payment_method_breakdown,
+            'top_contributors': top_contributors,
+            'average_daily': float(total_subscription_revenue) / period if period > 0 else 0
+        }
+    
+    def _get_geographic_analytics(self):
+        """Get geographic distribution of tenants."""
+        # By country
+        country_dist = Tenant.objects.values('country').annotate(
+            count=Count('id')
+        ).order_by('-count')
+        
+        country_distribution = {
+            item['country'] or 'Unknown': item['count']
+            for item in country_dist
+        }
+        
+        # By city (top cities)
+        city_dist = Tenant.objects.exclude(city='').values('city', 'country').annotate(
+            count=Count('id')
+        ).order_by('-count')[:20]
+        
+        city_distribution = [
+            {
+                'city': item['city'],
+                'country': item['country'] or 'Unknown',
+                'count': item['count']
+            }
+            for item in city_dist
+        ]
+        
+        # Revenue by country
+        revenue_by_country = Tenant.objects.values('country').annotate(
+            total_revenue=Sum('sales__total_amount'),
+            tenant_count=Count('id', distinct=True)
+        ).filter(total_revenue__gt=0).order_by('-total_revenue')
+        
+        country_revenue = [
+            {
+                'country': item['country'] or 'Unknown',
+                'revenue': float(item['total_revenue'] or 0),
+                'tenant_count': item['tenant_count']
+            }
+            for item in revenue_by_country
+        ]
+        
+        return {
+            'country_distribution': country_distribution,
+            'city_distribution': city_distribution,
+            'country_revenue': country_revenue
+        }
+    
+    def _get_major_contributors(self, start_date, end_date):
+        """Get major contributors analysis."""
+        from subscriptions.models import Payment
+        
+        # Top tenants by subscription payments
+        top_by_payments = Tenant.objects.annotate(
+            total_payments=Sum(
+                'subscription__payments__amount',
+                filter=Q(subscription__payments__paid_at__gte=start_date,
+                        subscription__payments__paid_at__lte=end_date,
+                        subscription__payments__status='completed')
+            )
+        ).filter(total_payments__gt=0).order_by('-total_payments')[:20]
+        
+        # Top tenants by sales volume
+        top_by_sales = Tenant.objects.annotate(
+            total_sales=Sum('sales__total_amount', filter=Q(sales__date__gte=start_date, sales__date__lte=end_date))
+        ).filter(total_sales__gt=0).order_by('-total_sales')[:20]
+        
+        # Calculate contribution percentages
+        total_subscription_revenue = Payment.objects.filter(
+            paid_at__gte=start_date, paid_at__lte=end_date, status='completed'
+        ).aggregate(total=Sum('amount'))['total'] or 0
+        
+        total_sales_revenue = Sale.objects.filter(
+            date__gte=start_date, date__lte=end_date
+        ).aggregate(total=Sum('total_amount'))['total'] or 0
+        
+        contributors_by_payments = [
+            {
+                'id': t.id,
+                'name': t.company_name,
+                'amount': float(t.total_payments or 0),
+                'percentage': round((float(t.total_payments or 0) / total_subscription_revenue * 100) if total_subscription_revenue > 0 else 0, 2),
+                'type': 'subscription',
+                'country': t.country,
+                'city': t.city,
+                'status': t.subscription_status
+            }
+            for t in top_by_payments
+        ]
+        
+        contributors_by_sales = [
+            {
+                'id': t.id,
+                'name': t.company_name,
+                'amount': float(t.total_sales or 0),
+                'percentage': round((float(t.total_sales or 0) / total_sales_revenue * 100) if total_sales_revenue > 0 else 0, 2),
+                'type': 'sales',
+                'country': t.country,
+                'city': t.city,
+                'status': t.subscription_status
+            }
+            for t in top_by_sales
+        ]
+        
+        # Combined contributors (weighted by both subscription and sales)
+        all_tenants = Tenant.objects.annotate(
+            subscription_contribution=Sum(
+                'subscription__payments__amount',
+                filter=Q(subscription__payments__paid_at__gte=start_date,
+                        subscription__payments__paid_at__lte=end_date,
+                        subscription__payments__status='completed')
+            ),
+            sales_contribution=Sum('sales__total_amount', filter=Q(sales__date__gte=start_date, sales__date__lte=end_date))
+        ).filter(
+            Q(subscription_contribution__gt=0) | Q(sales_contribution__gt=0)
+        )
+        
+        combined_contributors = []
+        for t in all_tenants:
+            sub_rev = float(t.subscription_contribution or 0)
+            sales_rev = float(t.sales_contribution or 0)
+            # Weight subscription revenue more (it's direct revenue to owner)
+            combined_score = (sub_rev * 1.0) + (sales_rev * 0.1)  # Subscription is direct, sales is indirect
+            
+            combined_contributors.append({
+                'id': t.id,
+                'name': t.company_name,
+                'subscription_revenue': sub_rev,
+                'sales_revenue': sales_rev,
+                'combined_score': combined_score,
+                'country': t.country,
+                'city': t.city,
+                'status': t.subscription_status,
+                'industry': t.business_category.name if t.business_category else 'Uncategorized'
+            })
+        
+        combined_contributors.sort(key=lambda x: x['combined_score'], reverse=True)
+        
+        return {
+            'by_subscription_payments': contributors_by_payments[:10],
+            'by_sales_volume': contributors_by_sales[:10],
+            'combined_top_contributors': combined_contributors[:15],
+            'total_subscription_revenue': float(total_subscription_revenue),
+            'total_sales_revenue': float(total_sales_revenue)
+        }
     
     def _get_transaction_analytics(self, start_date, end_date, period):
         """Get transaction analytics."""

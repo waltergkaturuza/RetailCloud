@@ -15,6 +15,9 @@ from .serializers import (
     UserSerializer, UserCreateSerializer, UserLoginSerializer,
     PasswordChangeSerializer, PINSetSerializer
 )
+from .security_service import SecurityService
+from .security_models import SecurityEvent, PasswordHistory
+from .email_notifications import SecurityEmailService, PasswordExpirationService
 from core.models import Tenant
 
 
@@ -59,6 +62,8 @@ class AuthViewSet(viewsets.ViewSet):
         email = serializer.validated_data['email']
         password = serializer.validated_data['password']
         tenant_slug = serializer.validated_data.get('tenant_slug', '').strip() or None
+        totp_token = serializer.validated_data.get('two_factor_token')
+        backup_code = serializer.validated_data.get('backup_code')
         
         try:
             user = User.objects.get(email=email)
@@ -76,14 +81,64 @@ class AuthViewSet(viewsets.ViewSet):
                     status=status.HTTP_401_UNAUTHORIZED
                 )
         
-        # Authenticate
-        user = authenticate(username=user.username, password=password)
-        if user and user.is_active:
-            user.last_login = timezone.now()
-            user.save()
-            refresh = RefreshToken.for_user(user)
+        # Get client IP and user agent
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        ip_address = x_forwarded_for.split(',')[0] if x_forwarded_for else request.META.get('REMOTE_ADDR', '')
+        user_agent = request.META.get('HTTP_USER_AGENT', '')
+        
+        # Authenticate with 2FA support and password expiration check
+        authenticated_user, success, message = SecurityService.authenticate_with_2fa(
+            username=user.username,
+            password=password,
+            totp_token=totp_token,
+            backup_code=backup_code,
+            ip_address=ip_address,
+            user_agent=user_agent
+        )
+        
+        if not success:
+            if message == "2FA_REQUIRED":
+                # User needs to provide 2FA token
+                return Response({
+                    'error': '2FA verification required.',
+                    'requires_2fa': True,
+                    'message': 'Please provide your 2FA code.'
+                }, status=status.HTTP_200_OK)  # 200 because credentials are correct
+            elif message == "PASSWORD_EXPIRED":
+                # Password has expired, user must change it
+                return Response({
+                    'error': 'Your password has expired. Please change your password to continue.',
+                    'password_expired': True,
+                    'message': 'Password expired. Please change your password.'
+                }, status=status.HTTP_200_OK)  # 200 because credentials are correct
+            return Response(
+                {'error': message},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        if authenticated_user and authenticated_user.is_active:
+            authenticated_user.last_login = timezone.now()
+            authenticated_user.last_login_ip = ip_address
+            authenticated_user.save()
+            
+            # Create user session
+            try:
+                session_key = request.session.session_key or request.session.create()
+                SecurityService.create_user_session(
+                    user=authenticated_user,
+                    session_key=session_key,
+                    ip_address=ip_address,
+                    user_agent=user_agent
+                )
+            except Exception as e:
+                # Don't fail login if session creation fails
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Failed to create user session: {str(e)}")
+            
+            refresh = RefreshToken.for_user(authenticated_user)
             return Response({
-                'user': UserSerializer(user).data,
+                'user': UserSerializer(authenticated_user).data,
                 'tokens': {
                     'refresh': str(refresh),
                     'access': str(refresh.access_token),
@@ -116,8 +171,13 @@ class AuthViewSet(viewsets.ViewSet):
     
     @action(detail=False, methods=['post'])
     def change_password(self, request):
-        """Change user password."""
-        serializer = PasswordChangeSerializer(data=request.data)
+        """Change user password with policy validation."""
+        from .security_serializers import PasswordChangeWithPolicySerializer
+        
+        serializer = PasswordChangeWithPolicySerializer(
+            data=request.data,
+            context={'request': request}
+        )
         if serializer.is_valid():
             user = request.user
             if not user.check_password(serializer.validated_data['old_password']):
@@ -125,8 +185,31 @@ class AuthViewSet(viewsets.ViewSet):
                     {'error': 'Incorrect old password.'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            user.set_password(serializer.validated_data['new_password'])
+            
+            new_password = serializer.validated_data['new_password']
+            
+            # Save old password to history before changing
+            old_password_hash = user.password  # Current password hash
+            
+            user.set_password(new_password)
             user.save()
+            
+            # Save old password to history after password is changed
+            SecurityService.save_password_to_history(user, old_password_hash)
+            
+            # Log security event
+            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+            ip_address = x_forwarded_for.split(',')[0] if x_forwarded_for else request.META.get('REMOTE_ADDR', '')
+            
+            SecurityEvent.objects.create(
+                user=user,
+                tenant=user.tenant,
+                event_type='password_changed',
+                ip_address=ip_address,
+                description="Password changed successfully",
+                severity='medium',
+            )
+            
             return Response({'message': 'Password changed successfully.'})
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     

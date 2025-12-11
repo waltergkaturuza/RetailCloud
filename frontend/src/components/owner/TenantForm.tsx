@@ -9,6 +9,8 @@ import Card from '../ui/Card'
 import Button from '../ui/Button'
 import toast from 'react-hot-toast'
 import { motion } from 'framer-motion'
+import AddressForm, { AddressData } from '../ui/AddressForm'
+import TimezoneSelector from '../ui/TimezoneSelector'
 
 interface BusinessCategory {
   id: number
@@ -25,9 +27,14 @@ interface TenantFormData {
   email: string
   phone: string
   address: string
+  address_line_2: string
   country: string
   city: string
+  state_province: string
+  postal_code: string
   subscription_status: 'trial' | 'active' | 'suspended' | 'expired' | 'cancelled'
+  subscription_type: 'monthly' | 'yearly'
+  preferred_payment_method: string
   trial_ends_at: string
   subscription_ends_at: string
   timezone: string
@@ -58,9 +65,14 @@ export default function TenantForm({ tenant, onClose, onSuccess }: TenantFormPro
     email: tenant?.email || '',
     phone: tenant?.phone || '',
     address: tenant?.address || '',
+    address_line_2: tenant?.address_line_2 || '',
     country: tenant?.country || 'Zimbabwe',
     city: tenant?.city || '',
+    state_province: tenant?.state_province || '',
+    postal_code: tenant?.postal_code || '',
     subscription_status: tenant?.subscription_status || 'trial',
+    subscription_type: tenant?.subscription_type || 'monthly',
+    preferred_payment_method: tenant?.preferred_payment_method || '',
     trial_ends_at: tenant?.trial_ends_at ? tenant.trial_ends_at.split('T')[0] : '',
     subscription_ends_at: tenant?.subscription_ends_at ? tenant.subscription_ends_at.split('T')[0] : '',
     timezone: tenant?.timezone || 'Africa/Harare',
@@ -154,7 +166,7 @@ export default function TenantForm({ tenant, onClose, onSuccess }: TenantFormPro
       // Clean up optional fields
       Object.keys(payload).forEach(key => {
         if (payload[key] === '' || payload[key] === undefined) {
-          if (['address', 'city', 'vat_number', 'custom_category_name', 'name'].includes(key)) {
+          if (['address', 'address_line_2', 'city', 'state_province', 'postal_code', 'vat_number', 'custom_category_name', 'name'].includes(key)) {
             payload[key] = ''
           } else if (['trial_ends_at', 'subscription_ends_at', 'business_category'].includes(key)) {
             payload[key] = null
@@ -165,9 +177,23 @@ export default function TenantForm({ tenant, onClose, onSuccess }: TenantFormPro
       })
       return api.post('/owner/tenants/', payload)
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ['owner-tenants'] })
-      toast.success('Tenant created successfully!')
+      
+      // Check if admin credentials are in the response
+      if (response.data?.admin_credentials) {
+        const creds = response.data.admin_credentials
+        const credentialsMessage = `Tenant created successfully!\n\nAdmin Credentials:\nUsername: ${creds.username}\nEmail: ${creds.email}\nPassword: ${creds.password}\n\n⚠️ Please save these credentials securely!`
+        
+        // Show credentials in an alert dialog
+        alert(credentialsMessage)
+        
+        // Also show a toast
+        toast.success('Tenant created! Admin credentials displayed in alert.', { duration: 5000 })
+      } else {
+        toast.success('Tenant created successfully!')
+      }
+      
       onSuccess()
       onClose()
     },
@@ -211,7 +237,7 @@ export default function TenantForm({ tenant, onClose, onSuccess }: TenantFormPro
       // Remove undefined or empty string values for optional fields
       Object.keys(payload).forEach(key => {
         if (payload[key] === '' || payload[key] === undefined) {
-          if (['address', 'city', 'vat_number', 'custom_category_name'].includes(key)) {
+          if (['address', 'address_line_2', 'city', 'state_province', 'postal_code', 'vat_number', 'custom_category_name'].includes(key)) {
             payload[key] = ''
           } else if (['trial_ends_at', 'subscription_ends_at', 'business_category'].includes(key)) {
             payload[key] = null
@@ -547,81 +573,29 @@ export default function TenantForm({ tenant, onClose, onSuccess }: TenantFormPro
 
             {/* Address Section */}
             <div style={{ marginBottom: '32px' }}>
-              <h3 style={{
-                fontSize: '18px',
-                fontWeight: '600',
-                color: '#2c3e50',
-                marginBottom: '20px',
-                paddingBottom: '12px',
-                borderBottom: '1px solid #ecf0f1',
-              }}>
-                📍 Address Information
-              </h3>
-              
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
-                gap: '20px',
-              }}>
-                <div style={{ gridColumn: '1 / -1' }}>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '8px',
-                    fontWeight: '600',
-                    color: '#2c3e50',
-                    fontSize: '14px',
-                  }}>
-                    Address
-                  </label>
-                  <textarea
-                    value={formData.address}
-                    onChange={(e) => handleChange('address', e.target.value)}
-                    className="input"
-                    style={{ width: '100%', minHeight: '80px', resize: 'vertical' }}
-                    placeholder="Street address"
-                  />
-                </div>
-
-                <div>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '8px',
-                    fontWeight: '600',
-                    color: '#2c3e50',
-                    fontSize: '14px',
-                  }}>
-                    City
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.city}
-                    onChange={(e) => handleChange('city', e.target.value)}
-                    className="input"
-                    style={{ width: '100%' }}
-                    placeholder="Harare"
-                  />
-                </div>
-
-                <div>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '8px',
-                    fontWeight: '600',
-                    color: '#2c3e50',
-                    fontSize: '14px',
-                  }}>
-                    Country
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.country}
-                    onChange={(e) => handleChange('country', e.target.value)}
-                    className="input"
-                    style={{ width: '100%' }}
-                    placeholder="Zimbabwe"
-                  />
-                </div>
-              </div>
+              <AddressForm
+                value={{
+                  street_address: formData.address,
+                  address_line_2: formData.address_line_2,
+                  city: formData.city,
+                  state_province: formData.state_province,
+                  postal_code: formData.postal_code,
+                  country: formData.country,
+                }}
+                onChange={(addressData) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    address: addressData.street_address || prev.address,
+                    address_line_2: addressData.address_line_2 || prev.address_line_2,
+                    city: addressData.city || prev.city,
+                    state_province: addressData.state_province || prev.state_province,
+                    postal_code: addressData.postal_code || prev.postal_code,
+                    country: addressData.country || prev.country,
+                  }))
+                }}
+                required={['country']}
+                errors={{}}
+              />
             </div>
 
             {/* Subscription Section */}
@@ -663,6 +637,55 @@ export default function TenantForm({ tenant, onClose, onSuccess }: TenantFormPro
                     <option value="suspended">Suspended</option>
                     <option value="expired">Expired</option>
                     <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{
+                    display: 'block',
+                    marginBottom: '8px',
+                    fontWeight: '600',
+                    color: '#2c3e50',
+                    fontSize: '14px',
+                  }}>
+                    Subscription Type
+                  </label>
+                  <select
+                    value={formData.subscription_type}
+                    onChange={(e) => handleChange('subscription_type', e.target.value as any)}
+                    className="input"
+                    style={{ width: '100%' }}
+                  >
+                    <option value="monthly">Monthly</option>
+                    <option value="yearly">Yearly</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{
+                    display: 'block',
+                    marginBottom: '8px',
+                    fontWeight: '600',
+                    color: '#2c3e50',
+                    fontSize: '14px',
+                  }}>
+                    Preferred Payment Method
+                  </label>
+                  <select
+                    value={formData.preferred_payment_method}
+                    onChange={(e) => handleChange('preferred_payment_method', e.target.value)}
+                    className="input"
+                    style={{ width: '100%' }}
+                  >
+                    <option value="">Select payment method...</option>
+                    <option value="card">Credit/Debit Card</option>
+                    <option value="ecocash">EcoCash</option>
+                    <option value="onemoney">OneMoney</option>
+                    <option value="telecash">Telecash</option>
+                    <option value="zipit">ZIPIT</option>
+                    <option value="paypal">PayPal</option>
+                    <option value="bank_transfer">Bank Transfer</option>
+                    <option value="cash">Cash</option>
                   </select>
                 </div>
 
@@ -772,25 +795,13 @@ export default function TenantForm({ tenant, onClose, onSuccess }: TenantFormPro
                 </div>
 
                 <div>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '8px',
-                    fontWeight: '600',
-                    color: '#2c3e50',
-                    fontSize: '14px',
-                  }}>
-                    Timezone
-                  </label>
-                  <select
+                  <TimezoneSelector
                     value={formData.timezone}
-                    onChange={(e) => handleChange('timezone', e.target.value)}
-                    className="input"
-                    style={{ width: '100%' }}
-                  >
-                    <option value="Africa/Harare">Africa/Harare (Zimbabwe)</option>
-                    <option value="Africa/Johannesburg">Africa/Johannesburg (South Africa)</option>
-                    <option value="UTC">UTC</option>
-                  </select>
+                    onChange={(tz) => handleChange('timezone', tz)}
+                    label="Timezone"
+                    placeholder="Select timezone..."
+                    country={formData.country}
+                  />
                 </div>
 
                 <div>

@@ -179,7 +179,7 @@ export default function OwnerUsers() {
   }, [users])
 
   return (
-    <div style={{ padding: '32px', maxWidth: '1600px', margin: '0 auto' }}>
+    <div style={{ width: '100%', padding: '30px' }}>
       {/* Header */}
       <div style={{ marginBottom: '32px' }}>
         <h1 style={{ margin: 0, fontSize: '32px', fontWeight: '700', color: '#2c3e50' }}>

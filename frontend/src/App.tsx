@@ -5,6 +5,8 @@ import { OwnerAuthProvider } from './contexts/OwnerAuthContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
+import ChangePassword from './pages/ChangePassword'
+import Signup from './pages/Signup'
 import POS from './pages/POS'
 import Products from './pages/Products'
 import Customers from './pages/Customers'
@@ -80,6 +82,8 @@ function App() {
               <GlobalSearch />
               <Routes>
                 <Route path="/login" element={<Login />} />
+                <Route path="/signup" element={<Signup />} />
+                <Route path="/change-password" element={<ChangePassword />} />
                 <Route
                   path="/"
                   element={

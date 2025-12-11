@@ -3,10 +3,11 @@
  * Allows tenants to request activation of recommended modules
  */
 import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import api from '../lib/api'
 import Button from './ui/Button'
 import toast from 'react-hot-toast'
+import ModuleDetailCard from './ModuleDetailCard'
 
 interface RecommendedModule {
   module_id?: number
@@ -16,6 +17,17 @@ interface RecommendedModule {
   priority?: number
   is_requested?: boolean
   can_request?: boolean
+  // Full module details (optional, fetched separately)
+  description?: string
+  detailed_description?: string
+  category?: string
+  icon?: string
+  features?: string[]
+  benefits?: string[]
+  use_cases?: string[]
+  target_business_types?: string[]
+  highlight_color?: string
+  is_featured?: boolean
 }
 
 interface EnabledModule {
@@ -148,78 +160,41 @@ export default function ModuleActivationList({ recommendedModules, enabledModule
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-          gap: '16px',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+          gap: '20px',
           marginBottom: '24px',
         }}
       >
         {availableModules.map((module) => {
           const isSelected = selectedModules.includes(module.module_code)
+          // Merge recommended module data with full module details (if available from API)
+          const mergedModule = {
+            id: module.module_id || module.id,
+            name: module.module_name || module.name,
+            code: module.module_code || module.code,
+            description: module.description,
+            detailed_description: module.detailed_description,
+            category: (module.category || 'core') as 'core' | 'advanced' | 'specialized' | 'bonus',
+            icon: module.icon,
+            features: module.features || [],
+            benefits: module.benefits || [],
+            use_cases: module.use_cases || [],
+            target_business_types: module.target_business_types || [],
+            highlight_color: module.highlight_color,
+            is_featured: module.is_featured || false,
+            video_demo_url: module.video_demo_url,
+            documentation_url: module.documentation_url,
+          }
+          
           return (
-            <div
+            <ModuleDetailCard
               key={module.module_code}
-              style={{
-                padding: '16px',
-                background: isSelected ? '#e3f2fd' : '#f8f9fa',
-                borderRadius: '8px',
-                border: `2px solid ${isSelected ? '#2196f3' : '#e9ecef'}`,
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-              }}
-              onClick={() => toggleModule(module.module_code)}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)'
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)'
-                e.currentTarget.style.boxShadow = 'none'
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '8px' }}>
-                <div style={{ fontWeight: '600', fontSize: '15px', flex: 1 }}>{module.module_name}</div>
-                {module.is_required && (
-                  <span
-                    style={{
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      fontSize: '10px',
-                      fontWeight: '600',
-                      background: '#ff9800',
-                      color: 'white',
-                      textTransform: 'uppercase',
-                    }}
-                  >
-                    Required
-                  </span>
-                )}
-              </div>
-              <div style={{ fontSize: '12px', color: '#666', marginBottom: '12px' }}>
-                Code: {module.module_code}
-              </div>
-              {/* Pricing Display (estimated, will be confirmed upon approval) */}
-              <div style={{ marginBottom: '12px', padding: '8px', background: '#fff', borderRadius: '4px', fontSize: '12px' }}>
-                <div style={{ color: '#666', marginBottom: '4px' }}>Estimated Cost:</div>
-                <div style={{ fontWeight: '600', color: '#667eea' }}>
-                  USD {periodMonths === 12 ? '96.00' : '10.00'} / {periodMonths === 12 ? 'year' : 'month'}
-                </div>
-                {periodMonths === 12 && (
-                  <div style={{ fontSize: '11px', color: '#28a745', marginTop: '4px' }}>
-                    Save 20% vs monthly
-                  </div>
-                )}
-              </div>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={() => toggleModule(module.module_code)}
-                  onClick={(e) => e.stopPropagation()}
-                  style={{ cursor: 'pointer' }}
-                />
-                <span style={{ fontSize: '13px', color: '#666' }}>Select to activate</span>
-              </div>
-            </div>
+              module={mergedModule}
+              isSelected={isSelected}
+              isEnabled={isModuleEnabled(module.module_code)}
+              onToggle={toggleModule}
+              showActions={true}
+            />
           )
         })}
       </div>
