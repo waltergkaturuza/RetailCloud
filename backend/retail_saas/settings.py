@@ -159,6 +159,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Production Security Settings
 if not DEBUG:
+    # Render handles HTTPS termination, so we need to trust the proxy
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
