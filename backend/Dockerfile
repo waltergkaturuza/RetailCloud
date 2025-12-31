@@ -24,7 +24,8 @@ EXPOSE 8000
 
 # Run migrations and start server with Gunicorn (production-ready)
 # Railway provides PORT environment variable, default to 8000 if not set
-CMD python manage.py migrate && gunicorn retail_saas.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 120 --access-logfile - --error-logfile -
+# Use shell form to allow variable expansion and command chaining
+CMD sh -c "python manage.py migrate && gunicorn retail_saas.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 120 --access-logfile - --error-logfile -"
 
 
 
