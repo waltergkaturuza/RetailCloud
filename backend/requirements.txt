@@ -10,6 +10,8 @@ django-filter==23.5
 djangorestframework-simplejwt==5.3.1
 celery==5.3.4
 redis==5.0.1
+channels==4.0.0  # Django Channels for WebSocket support
+channels-redis==4.2.0  # Redis channel layer for Channels
 stripe==7.8.0
 python-dateutil==2.8.2
 openpyxl==3.1.2
