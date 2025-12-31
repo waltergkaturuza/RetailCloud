@@ -5,19 +5,26 @@ WORKDIR /app
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     postgresql-client \
+    gcc \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
 # Copy project
 COPY . .
 
-# Expose port
+# Collect static files
+RUN python manage.py collectstatic --noinput || true
+
+# Expose port (Railway sets PORT env var dynamically)
 EXPOSE 8000
 
-# Run migrations and start server
-CMD python manage.py migrate && python manage.py runserver 0.0.0.0:8000
+# Run migrations and start server with Gunicorn (production-ready)
+# Railway provides PORT environment variable, default to 8000 if not set
+CMD python manage.py migrate && gunicorn retail_saas.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 120 --access-logfile - --error-logfile -
+
+
 
 

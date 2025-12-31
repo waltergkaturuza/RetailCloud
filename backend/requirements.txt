@@ -2,8 +2,9 @@ Django==4.2.7
 djangorestframework==3.14.0
 django-cors-headers==4.3.0
 django-extensions==3.2.3
-# psycopg2-binary==2.9.9  # Optional - only needed for PostgreSQL (using SQLite for local dev)
+psycopg2-binary==2.9.9  # Required for PostgreSQL
 python-dotenv==1.0.0
+gunicorn==21.2.0  # Production WSGI server
 Pillow>=10.2.0
 django-filter==23.5
 djangorestframework-simplejwt==5.3.1
@@ -21,4 +22,10 @@ django-ratelimit==4.1.0
 # pandas and numpy - optional for analytics, install separately if needed
 # pandas>=2.2.0
 # numpy>=2.0.0
+# SMS and SSO dependencies (optional - install as needed)
+# twilio>=8.0.0  # For SMS 2FA and SMS marketing: pip install twilio
+# boto3>=1.28.0  # For AWS SNS SMS: pip install boto3
+# django-allauth>=0.54.0  # For OAuth2 SSO: pip install django-allauth
+# python-saml>=3.0.0  # For SAML SSO: pip install python3-saml
+# python-ldap>=3.4.0  # For LDAP SSO: pip install python-ldap
 
