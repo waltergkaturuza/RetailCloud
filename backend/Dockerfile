@@ -9,11 +9,12 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
-COPY requirements.txt .
+# Build context is repo root, so copy from backend/
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
-# Copy project
-COPY . .
+# Copy project files from backend directory
+COPY backend/ .
 
 # Collect static files
 RUN python manage.py collectstatic --noinput || true
