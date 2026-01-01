@@ -54,23 +54,25 @@ class TradingProfitLossService:
         # ===== OTHER EXPENSES =====
         other_expenses = self._calculate_other_expenses()
         
-        # ===== TAXES =====
-        taxes = self._calculate_taxes()
-        
         # ===== OTHER INCOME =====
         other_income = self._calculate_other_income()
         
-        # ===== CALCULATIONS =====
+        # ===== CALCULATIONS (BEFORE TAXES) =====
         # Convert all values to Decimal for consistent arithmetic
         gross_profit = Decimal(str(trading['gross_profit']))
         op_expenses_total = Decimal(str(operating_expenses['total']))
         other_income_total = Decimal(str(other_income['total']))
         other_expenses_total = Decimal(str(other_expenses['total']))
-        taxes_total = Decimal(str(taxes['total']))
         revenue = Decimal(str(trading['revenue']))
         
         operating_profit = gross_profit - op_expenses_total
         profit_before_tax = operating_profit + other_income_total - other_expenses_total
+        
+        # ===== TAXES =====
+        # Calculate taxes (includes income tax calculation based on profit before tax)
+        taxes = self._calculate_taxes(profit_before_tax)
+        taxes_total = Decimal(str(taxes['total']))
+        
         net_profit = profit_before_tax - taxes_total
         
         # Calculate margins
