@@ -53,6 +53,14 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             'type': 'notification',
             'data': message
         }))
+    
+    async def notification_count_update(self, event):
+        """Send unread count update to WebSocket."""
+        count = event['count']
+        await self.send(text_data=json.dumps({
+            'type': 'notification_count',
+            'count': count
+        }))
 
 
 class SalesConsumer(AsyncWebsocketConsumer):

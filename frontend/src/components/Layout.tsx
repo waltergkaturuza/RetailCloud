@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { getAllowedNavItems } from '../lib/permissions'
 import Button from './ui/Button'
+import NotificationCenter from './NotificationCenter'
 
 export default function Layout() {
   const { user, logout } = useAuth()
@@ -210,7 +211,28 @@ export default function Layout() {
         </div>
       </aside>
 
-      <main style={{ flex: 1, padding: '30px', overflow: 'auto' }}>
+      <main style={{ flex: 1, padding: '30px', overflow: 'auto', position: 'relative' }}>
+        {/* Header Bar with Notifications */}
+        <div style={{
+          position: 'sticky',
+          top: 0,
+          background: 'white',
+          padding: '12px 20px',
+          margin: '-30px -30px 20px -30px',
+          borderBottom: '1px solid #ecf0f1',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          zIndex: 100,
+        }}>
+          <div style={{ flex: 1 }}></div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <NotificationCenter />
+            <div style={{ fontSize: '14px', color: '#7f8c8d' }}>
+              {user?.first_name || user?.email || 'User'}
+            </div>
+          </div>
+        </div>
         <Outlet />
       </main>
     </div>

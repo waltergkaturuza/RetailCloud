@@ -6,6 +6,7 @@ from .models import Tenant, Module, Package, Branch
 from .currency_models import Currency, ExchangeRate, TenantCurrency
 from .receipt_models import ReceiptTemplate, ReceiptPrintLog
 from .business_category_models import BusinessCategory, CategoryModuleMapping
+from .notification_models import Notification, NotificationPreference
 from .owner_models import (
     SystemSettings, OwnerAuditLog, SystemHealthMetric,
     SystemAnnouncement, TenantBackup
@@ -137,4 +138,20 @@ class CategoryModuleMappingAdmin(admin.ModelAdmin):
     list_filter = ['is_required', 'category', 'module']
     search_fields = ['category__name', 'module__name', 'notes']
     ordering = ['-priority']
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ['title', 'user', 'type', 'priority', 'is_read', 'created_at']
+    list_filter = ['type', 'priority', 'is_read', 'created_at']
+    search_fields = ['title', 'message', 'user__email']
+    readonly_fields = ['created_at', 'read_at']
+    date_hierarchy = 'created_at'
+
+
+@admin.register(NotificationPreference)
+class NotificationPreferenceAdmin(admin.ModelAdmin):
+    list_display = ['user', 'email_enabled', 'in_app_enabled', 'sms_enabled', 'push_enabled']
+    list_filter = ['email_enabled', 'in_app_enabled', 'sms_enabled', 'push_enabled']
+    search_fields = ['user__email', 'user__username']
 
