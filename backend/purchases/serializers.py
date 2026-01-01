@@ -333,6 +333,39 @@ class GoodsReceivedNoteSerializer(serializers.ModelSerializer):
                 cost_price=cost_price
             )
         
+        # Auto-create VAT input tax liability if tax config is enabled
+        # Calculate total purchase amount from GRN items
+        from decimal import Decimal as D
+        total_purchase_amount = D('0.00')
+        for grn_item in grn.items.all():
+            total_purchase_amount += grn_item.cost_price * D(str(grn_item.quantity_received))
+        
+        if total_purchase_amount > 0:
+            try:
+                from accounting.tax_calculation_service import TaxCalculationService
+                from django.utils import timezone
+                tax_service = TaxCalculationService(grn.tenant)
+                if tax_service.config.auto_calculate_tax and tax_service.config.vat_registered:
+                    # Calculate VAT on purchase
+                    vat_result = tax_service.calculate_vat(total_purchase_amount, tax_service.config.tax_inclusive_pricing)
+                    vat_input_amount = D(str(vat_result['tax_amount']))
+                    
+                    if vat_input_amount > 0:
+                        # Create VAT input liability for this purchase
+                        tax_service.create_tax_liability(
+                            tax_type='vat_input',
+                            source_type='purchase',
+                            source_id=grn.id,
+                            taxable_amount=D(str(vat_result['base_amount'])),
+                            tax_rate=tax_service.config.standard_vat_rate,
+                            transaction_date=timezone.now().date(),
+                            branch=grn.branch,
+                            reference_number=grn.invoice_number or grn.grn_number
+                        )
+            except Exception:
+                # Silently fail if tax service is not available
+                pass
+        
         return grn
 
 

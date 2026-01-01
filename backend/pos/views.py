@@ -106,9 +106,27 @@ class SaleViewSet(viewsets.ModelViewSet):
                     except ProductVariant.DoesNotExist:
                         pass
                 
-                # Calculate item total
+                # Calculate item total with tax
                 item_subtotal = (quantity * unit_price) - item_discount
-                item_tax = item_subtotal * (Decimal(str(tenant.tax_rate)) / Decimal('100.00')) if product.is_taxable else Decimal('0.00')
+                
+                # Use TaxCalculationService for VAT calculation if product is taxable
+                item_tax = Decimal('0.00')
+                if product.is_taxable:
+                    try:
+                        from accounting.tax_calculation_service import TaxCalculationService
+                        tax_service = TaxCalculationService(tenant)
+                        # Check if tax config exists and auto-calculate is enabled
+                        if tax_service.config.auto_calculate_tax and tax_service.config.vat_registered:
+                            vat_result = tax_service.calculate_vat(item_subtotal, tax_service.config.tax_inclusive_pricing)
+                            item_tax = Decimal(str(vat_result['tax_amount']))
+                            item_subtotal = Decimal(str(vat_result['base_amount']))
+                        else:
+                            # Fallback to tenant tax_rate if tax config not set up
+                            item_tax = item_subtotal * (Decimal(str(tenant.tax_rate)) / Decimal('100.00'))
+                    except Exception:
+                        # Fallback to tenant tax_rate on any error
+                        item_tax = item_subtotal * (Decimal(str(tenant.tax_rate)) / Decimal('100.00'))
+                
                 item_total = item_subtotal + item_tax
                 
                 subtotal += item_subtotal
@@ -163,6 +181,27 @@ class SaleViewSet(viewsets.ModelViewSet):
                 is_paid=True,
                 paid_at=timezone.now()
             )
+            
+            # Auto-create tax liability if VAT is applicable and tax config is enabled
+            if tax_amount > 0:
+                try:
+                    from accounting.tax_calculation_service import TaxCalculationService
+                    tax_service = TaxCalculationService(tenant)
+                    if tax_service.config.auto_calculate_tax and tax_service.config.vat_registered:
+                        # Create VAT output liability for this sale
+                        tax_service.create_tax_liability(
+                            tax_type='vat_output',
+                            source_type='sale',
+                            source_id=sale.id,
+                            taxable_amount=subtotal,
+                            tax_rate=tax_service.config.standard_vat_rate,
+                            transaction_date=timezone.now().date(),
+                            branch=branch,
+                            reference_number=sale.invoice_number
+                        )
+                except Exception:
+                    # Silently fail if tax service is not available - don't break sale creation
+                    pass
             
             # Now create sale items and update stock
             for item_info in items_data:
