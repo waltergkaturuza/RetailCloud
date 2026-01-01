@@ -10,6 +10,7 @@ import Signup from './pages/Signup'
 import POS from './pages/POS'
 import Products from './pages/Products'
 import Customers from './pages/Customers'
+import CustomerCRM from './pages/CustomerCRM'
 import Sales from './pages/Sales'
 import Reports from './pages/Reports'
 import Purchases from './pages/Purchases'
@@ -113,6 +114,11 @@ function App() {
                   <Route path="customers" element={
                     <RoleProtectedRoute requiredPermission="canAccessCustomers">
                       <Customers />
+                    </RoleProtectedRoute>
+                  } />
+                  <Route path="customer-crm" element={
+                    <RoleProtectedRoute requiredPermission="canAccessCustomers">
+                      <CustomerCRM />
                     </RoleProtectedRoute>
                   } />
                   <Route path="sales" element={
