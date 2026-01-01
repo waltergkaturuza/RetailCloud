@@ -170,6 +170,16 @@ function App() {
                       <Users />
                     </RoleProtectedRoute>
                   } />
+                  <Route path="employees" element={
+                    <RoleProtectedRoute requiredPermission="canAccessEmployees">
+                      <Employees />
+                    </RoleProtectedRoute>
+                  } />
+                  <Route path="shifts" element={
+                    <RoleProtectedRoute requiredPermission="canAccessEmployees">
+                      <Shifts />
+                    </RoleProtectedRoute>
+                  } />
                   <Route path="permissions-matrix" element={
                     <RoleProtectedRoute requiredPermission="canAccessUsers">
                       <PermissionsMatrix />
