@@ -200,6 +200,11 @@ function App() {
                       <Taxes />
                     </RoleProtectedRoute>
                   } />
+                  <Route path="tax-management" element={
+                    <RoleProtectedRoute requiredPermission="canAccessReports">
+                      <TaxManagement />
+                    </RoleProtectedRoute>
+                  } />
                 </Route>
                 
                 {/* Owner Routes */}
