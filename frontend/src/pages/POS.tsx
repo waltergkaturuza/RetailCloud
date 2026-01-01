@@ -390,7 +390,8 @@ export default function POS() {
             product_id: item.product.id,
             quantity: item.quantity,
             unit_price: item.unit_price,
-            discount_amount: item.discount || 0
+            discount_amount: item.discount || 0,
+            serial_numbers: item.serial_numbers || []  // Include serial numbers
           })),
           payment_method: paymentSplits.length > 0 ? 'split' : paymentMethod,
           currency: selectedCurrency,
