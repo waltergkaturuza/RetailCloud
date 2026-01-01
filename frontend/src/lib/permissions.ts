@@ -25,6 +25,7 @@ export interface RolePermissions {
   canAccessPurchases: boolean
   canAccessReports: boolean
   canAccessUsers: boolean
+  canAccessEmployees: boolean
   canAccessSettings: boolean
   canAccessBranches: boolean
   
@@ -74,6 +75,7 @@ const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canAccessPurchases: true,
     canAccessReports: true,
     canAccessUsers: true,
+    canAccessEmployees: true,
     canAccessSettings: true,
     canCreateProducts: true,
     canEditProducts: true,
@@ -112,6 +114,7 @@ const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canAccessPurchases: true,
     canAccessReports: true,
     canAccessUsers: true,
+    canAccessEmployees: true,
     canAccessSettings: true,
     canCreateProducts: true,
     canEditProducts: true,
@@ -150,6 +153,7 @@ const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canAccessPurchases: true,
     canAccessReports: true,
     canAccessUsers: false,
+    canAccessEmployees: true,
     canAccessSettings: false,
     canCreateProducts: true,
     canEditProducts: true,
@@ -188,6 +192,7 @@ const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canAccessPurchases: false,
     canAccessReports: true,
     canAccessUsers: false,
+    canAccessEmployees: true,
     canAccessSettings: false,
     canCreateProducts: false,
     canEditProducts: true,
@@ -264,6 +269,7 @@ const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canAccessPurchases: true,
     canAccessReports: true,
     canAccessUsers: false,
+    canAccessEmployees: true,
     canAccessSettings: false,
     canCreateProducts: true,
     canEditProducts: true,
@@ -302,6 +308,7 @@ const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canAccessPurchases: false,
     canAccessReports: true,
     canAccessUsers: false,
+    canAccessEmployees: true,
     canAccessSettings: false,
     canCreateProducts: false,
     canEditProducts: false,
@@ -340,6 +347,7 @@ const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canAccessPurchases: true,
     canAccessReports: true,
     canAccessUsers: false,
+    canAccessEmployees: true,
     canAccessSettings: false,
     canCreateProducts: false,
     canEditProducts: false,
@@ -407,6 +415,8 @@ export function getAllowedNavItems(role: UserRole | undefined | null) {
     { path: '/returns', label: 'Returns', icon: '↩️', allowed: permissions.canAccessReturns },
     { path: '/reports', label: 'Reports', icon: '📈', allowed: permissions.canAccessReports },
     { path: '/users', label: 'Users', icon: '👤', allowed: permissions.canAccessUsers },
+    { path: '/employees', label: 'Employees', icon: '👥', allowed: permissions.canAccessEmployees },
+    { path: '/shifts', label: 'Shifts', icon: '⏰', allowed: permissions.canAccessEmployees },
     { path: '/settings', label: 'Settings', icon: '⚙️', allowed: permissions.canAccessSettings },
   ].filter(item => item.allowed)
 }
