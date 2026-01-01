@@ -8,6 +8,11 @@ import WarehouseManagement from '../components/AdvancedInventory/WarehouseManage
 import DemandForecasting from '../components/AdvancedInventory/DemandForecasting'
 import StockAnalysis from '../components/AdvancedInventory/StockAnalysis'
 import BulkOperations from '../components/AdvancedInventory/BulkOperations'
+import BulkSerialImport from '../components/BulkInventory/BulkSerialImport'
+import WarehouseZoneManagement from '../components/BulkInventory/WarehouseZoneManagement'
+import ProductLocationManagement from '../components/BulkInventory/ProductLocationManagement'
+import LocationMappingManagement from '../components/BulkInventory/LocationMappingManagement'
+import SerialPatternManagement from '../components/BulkInventory/SerialPatternManagement'
 
 export default function Inventory() {
   const [searchQuery, setSearchQuery] = useState('')
@@ -15,7 +20,7 @@ export default function Inventory() {
   const [filterLowStock, setFilterLowStock] = useState(false)
   const [showAdjustmentForm, setShowAdjustmentForm] = useState<any>(null)
   const [selectedProduct, setSelectedProduct] = useState<any>(null)
-  const [activeTab, setActiveTab] = useState<'stock' | 'movements' | 'batches' | 'warehouse' | 'forecasting' | 'analysis' | 'bulk'>('stock')
+  const [activeTab, setActiveTab] = useState<'stock' | 'movements' | 'batches' | 'warehouse' | 'forecasting' | 'analysis' | 'bulk' | 'bulk-import' | 'zones' | 'locations' | 'mappings' | 'patterns'>('stock')
   const queryClient = useQueryClient()
 
   // Fetch branches for filtering and adjustment
@@ -272,6 +277,86 @@ export default function Inventory() {
           }}
         >
           📥 Bulk Ops
+        </button>
+        <button
+          onClick={() => setActiveTab('bulk-import')}
+          style={{
+            padding: '12px 24px',
+            background: 'transparent',
+            border: 'none',
+            borderBottom: activeTab === 'bulk-import' ? '3px solid #3498db' : '3px solid transparent',
+            color: activeTab === 'bulk-import' ? '#3498db' : '#7f8c8d',
+            fontWeight: activeTab === 'bulk-import' ? '600' : '400',
+            cursor: 'pointer',
+            fontSize: '14px',
+            transition: 'all 0.2s'
+          }}
+        >
+          🔢 Bulk Import
+        </button>
+        <button
+          onClick={() => setActiveTab('patterns')}
+          style={{
+            padding: '12px 24px',
+            background: 'transparent',
+            border: 'none',
+            borderBottom: activeTab === 'patterns' ? '3px solid #3498db' : '3px solid transparent',
+            color: activeTab === 'patterns' ? '#3498db' : '#7f8c8d',
+            fontWeight: activeTab === 'patterns' ? '600' : '400',
+            cursor: 'pointer',
+            fontSize: '14px',
+            transition: 'all 0.2s'
+          }}
+        >
+          🔤 Patterns
+        </button>
+        <button
+          onClick={() => setActiveTab('zones')}
+          style={{
+            padding: '12px 24px',
+            background: 'transparent',
+            border: 'none',
+            borderBottom: activeTab === 'zones' ? '3px solid #3498db' : '3px solid transparent',
+            color: activeTab === 'zones' ? '#3498db' : '#7f8c8d',
+            fontWeight: activeTab === 'zones' ? '600' : '400',
+            cursor: 'pointer',
+            fontSize: '14px',
+            transition: 'all 0.2s'
+          }}
+        >
+          🏢 Zones
+        </button>
+        <button
+          onClick={() => setActiveTab('locations')}
+          style={{
+            padding: '12px 24px',
+            background: 'transparent',
+            border: 'none',
+            borderBottom: activeTab === 'locations' ? '3px solid #3498db' : '3px solid transparent',
+            color: activeTab === 'locations' ? '#3498db' : '#7f8c8d',
+            fontWeight: activeTab === 'locations' ? '600' : '400',
+            cursor: 'pointer',
+            fontSize: '14px',
+            transition: 'all 0.2s'
+          }}
+        >
+          📍 Locations
+        </button>
+        <button
+          onClick={() => setActiveTab('mappings')}
+          style={{
+            padding: '12px 24px',
+            background: 'transparent',
+            border: 'none',
+            borderBottom: activeTab === 'mappings' ? '3px solid #3498db' : '3px solid transparent',
+            color: activeTab === 'mappings' ? '#3498db' : '#7f8c8d',
+            fontWeight: activeTab === 'mappings' ? '600' : '400',
+            cursor: 'pointer',
+            fontSize: '14px',
+            transition: 'all 0.2s'
+          }}
+        >
+          🗺️ Mappings
         </button>
       </div>
 
@@ -549,6 +634,13 @@ export default function Inventory() {
       {activeTab === 'forecasting' && <DemandForecasting />}
       {activeTab === 'analysis' && <StockAnalysis />}
       {activeTab === 'bulk' && <BulkOperations />}
+      
+      {/* Bulk Inventory Management Tabs */}
+      {activeTab === 'bulk-import' && <BulkSerialImport />}
+      {activeTab === 'patterns' && <SerialPatternManagement />}
+      {activeTab === 'zones' && <WarehouseZoneManagement />}
+      {activeTab === 'locations' && <ProductLocationManagement />}
+      {activeTab === 'mappings' && <LocationMappingManagement />}
 
       {/* Batches Tab */}
       {activeTab === 'batches' && (
