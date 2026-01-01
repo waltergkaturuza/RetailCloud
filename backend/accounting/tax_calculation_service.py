@@ -274,19 +274,35 @@ class TaxCalculationService:
         branch=None
     ) -> Decimal:
         """
-        Calculate taxable income for a period.
-        This would integrate with P&L calculations.
+        Calculate taxable income for a period using P&L service.
         
-        For now, this is a placeholder - should integrate with actual P&L service.
+        Returns:
+            Taxable income (profit before tax)
         """
-        # TODO: Integrate with TradingProfitLossService
-        # This should pull from:
-        # - Sales revenue
-        # - Less: Cost of goods sold
-        # - Less: Deductible expenses
-        # = Taxable income
-        
-        return Decimal('0.00')
+        try:
+            from reports.pl_service import TradingProfitLossService
+            branch_id = branch.id if branch else None
+            pl_service = TradingProfitLossService(self.tenant, period_start, period_end, branch_id)
+            
+            # Get trading account and expenses
+            trading = pl_service._calculate_trading_account()
+            operating_expenses = pl_service._calculate_operating_expenses()
+            other_expenses = pl_service._calculate_other_expenses()
+            other_income = pl_service._calculate_other_income()
+            
+            # Calculate profit before tax
+            gross_profit = Decimal(str(trading['gross_profit']))
+            op_expenses_total = Decimal(str(operating_expenses['total']))
+            other_income_total = Decimal(str(other_income['total']))
+            other_expenses_total = Decimal(str(other_expenses['total']))
+            
+            operating_profit = gross_profit - op_expenses_total
+            profit_before_tax = operating_profit + other_income_total - other_expenses_total
+            
+            return max(Decimal('0.00'), profit_before_tax)  # Taxable income cannot be negative
+        except Exception:
+            # Return zero if P&L service is not available
+            return Decimal('0.00')
     
     def get_tax_due_dates(self, period_end: date, tax_type: str) -> dict:
         """

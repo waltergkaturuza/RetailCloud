@@ -20,6 +20,7 @@ except ImportError:
     # Fallback if return_service doesn't exist
     ReturnProcessingService = None
 from accounting.models import Expense, TaxTransaction
+from accounting.tax_config_models import TaxLiability
 from inventory.models import StockLevel
 
 
@@ -312,8 +313,12 @@ class TradingProfitLossService:
             }
         }
     
-    def _calculate_taxes(self) -> Dict:
-        """Calculate tax expenses (ZIMRA, etc.)."""
+    def _calculate_taxes(self, profit_before_tax: Decimal = None) -> Dict:
+        """
+        Calculate tax expenses (ZIMRA, etc.).
+        Integrates with TaxCalculationService for accurate tax calculations.
+        """
+        # Get paid taxes from TaxTransaction (actual tax payments)
         taxes_query = TaxTransaction.objects.filter(
             tenant=self.tenant,
             date__gte=self.start_date,
@@ -323,10 +328,22 @@ class TradingProfitLossService:
         if self.branch_id:
             taxes_query = taxes_query.filter(branch_id=self.branch_id)
         
+        # Get accrued taxes from TaxLiability (VAT, PAYE, etc. - not income tax)
+        liabilities_query = TaxLiability.objects.filter(
+            tenant=self.tenant,
+            transaction_date__gte=self.start_date,
+            transaction_date__lte=self.end_date,
+            tax_type__in=['vat_output', 'paye', 'aids_levy', 'nssa', 'zimdef']  # Exclude VAT input and income tax
+        )
+        
+        if self.branch_id:
+            liabilities_query = liabilities_query.filter(branch_id=self.branch_id)
+        
         # Group by tax type
         tax_types = {}
         total = Decimal('0.00')
         
+        # Add TaxTransaction payments
         for tax in taxes_query:
             tax_type = tax.tax_type
             amount = Decimal(str(tax.amount))
@@ -344,9 +361,92 @@ class TradingProfitLossService:
                 'date': tax.date.isoformat(),
                 'amount': float(amount),
                 'reference': tax.reference_number,
-                'status': tax.status
+                'status': tax.status,
+                'source': 'payment'
             })
             total += amount
+        
+        # Add TaxLiability accrued taxes
+        for liability in liabilities_query:
+            tax_type = liability.tax_type
+            # Map liability tax_type to TaxTransaction tax_type
+            if tax_type == 'vat_output':
+                mapped_type = 'vat'
+            elif tax_type == 'aids_levy':
+                mapped_type = 'aids_levy'
+            elif tax_type == 'nssa':
+                mapped_type = 'nssa'
+            elif tax_type == 'zimdef':
+                mapped_type = 'zimdef'
+            else:
+                mapped_type = tax_type
+            
+            amount = Decimal(str(liability.tax_amount))
+            
+            if mapped_type not in tax_types:
+                tax_types[mapped_type] = {
+                    'name': liability.get_tax_type_display(),
+                    'amount': Decimal('0.00'),
+                    'items': []
+                }
+            
+            tax_types[mapped_type]['amount'] += amount
+            tax_types[mapped_type]['items'].append({
+                'reference': liability.reference_number,
+                'date': liability.transaction_date.isoformat(),
+                'amount': float(amount),
+                'source': 'accrued'
+            })
+            total += amount
+        
+        # Calculate income tax if profit_before_tax is provided
+        income_tax_amount = Decimal('0.00')
+        if profit_before_tax is not None and profit_before_tax > 0:
+            try:
+                from accounting.tax_calculation_service import TaxCalculationService
+                tax_service = TaxCalculationService(self.tenant)
+                income_tax_result = tax_service.calculate_income_tax(profit_before_tax)
+                income_tax_amount = income_tax_result['tax_amount']
+                
+                # Calculate AIDS Levy on taxable income
+                aids_levy_amount = tax_service.calculate_aids_levy(profit_before_tax)
+                
+                # Add income tax
+                if 'income_tax' not in tax_types:
+                    tax_types['income_tax'] = {
+                        'name': 'Income Tax',
+                        'amount': Decimal('0.00'),
+                        'items': []
+                    }
+                tax_types['income_tax']['amount'] += income_tax_amount
+                tax_types['income_tax']['items'].append({
+                    'reference': 'Calculated',
+                    'date': self.end_date.isoformat(),
+                    'amount': float(income_tax_amount),
+                    'source': 'calculated',
+                    'breakdown': income_tax_result.get('breakdown', [])
+                })
+                total += income_tax_amount
+                
+                # Add AIDS Levy if not already included
+                if aids_levy_amount > 0:
+                    if 'aids_levy' not in tax_types:
+                        tax_types['aids_levy'] = {
+                            'name': 'AIDS Levy',
+                            'amount': Decimal('0.00'),
+                            'items': []
+                        }
+                    tax_types['aids_levy']['amount'] += aids_levy_amount
+                    tax_types['aids_levy']['items'].append({
+                        'reference': 'Calculated',
+                        'date': self.end_date.isoformat(),
+                        'amount': float(aids_levy_amount),
+                        'source': 'calculated'
+                    })
+                    total += aids_levy_amount
+            except Exception:
+                # Silently fail if tax service is not available
+                pass
         
         # Convert to list
         taxes_list = []
@@ -359,7 +459,7 @@ class TradingProfitLossService:
             })
         
         return {
-            'total': total,
+            'total': float(total),
             'categories': taxes_list,
             'breakdown': {
                 'vat': float(tax_types.get('vat', {}).get('amount', Decimal('0.00'))),
