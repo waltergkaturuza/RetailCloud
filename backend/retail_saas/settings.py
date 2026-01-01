@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'reports',
     'analytics',
     'marketing',  # Marketing automation
+    'employees',  # Employee Management & HR
 ]
 
 MIDDLEWARE = [
