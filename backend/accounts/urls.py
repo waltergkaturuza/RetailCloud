@@ -12,6 +12,7 @@ from .security_views import (
     UserSessionViewSet, IPWhitelistViewSet, SecurityEventViewSet,
     PasswordExpirationViewSet
 )
+from .sms_2fa_views import SMS2FAViewSet
 
 router = DefaultRouter()
 router.register(r'auth', AuthViewSet, basename='auth')
@@ -23,6 +24,7 @@ router.register(r'security/sessions', UserSessionViewSet, basename='user-session
 router.register(r'security/ip-whitelist', IPWhitelistViewSet, basename='ip-whitelist')
 router.register(r'security/events', SecurityEventViewSet, basename='security-event')
 router.register(r'security/password-expiration', PasswordExpirationViewSet, basename='password-expiration')
+router.register(r'security/sms-2fa', SMS2FAViewSet, basename='sms-2fa')
 
 urlpatterns = [
     path('', include(router.urls)),

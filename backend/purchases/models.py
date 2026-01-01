@@ -139,3 +139,5 @@ class GRNItem(models.Model):
         return f"{self.product.name} - {self.quantity_received}"
 
 
+
+

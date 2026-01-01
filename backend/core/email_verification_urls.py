@@ -9,3 +9,5 @@ urlpatterns = [
     path('verify-email/', VerifyEmailView.as_view(), name='verify-email'),
 ]
 
+
+

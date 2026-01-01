@@ -84,3 +84,5 @@ class BranchListSerializer(serializers.ModelSerializer):
         return obj.staff.count()
 
 
+
+

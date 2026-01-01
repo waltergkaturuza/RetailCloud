@@ -98,3 +98,5 @@ class TenantBrandingView(views.APIView):
         serializer = TenantBrandingSerializer(tenant, context={'request': request})
         return Response(serializer.data)
 
+
+

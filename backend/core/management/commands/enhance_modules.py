@@ -689,3 +689,5 @@ class Command(BaseCommand):
         
         self.stdout.write(self.style.SUCCESS(f'\nSuccessfully enhanced {updated_count} modules!'))
 
+
+

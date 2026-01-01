@@ -12,3 +12,5 @@ class ModuleViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ModuleSerializer
     permission_classes = [permissions.AllowAny]
 
+
+

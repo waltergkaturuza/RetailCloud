@@ -58,3 +58,5 @@ class TenantBrandingSerializer(serializers.ModelSerializer):
             return obj.prepared_by_signature.url
         return None
 
+
+

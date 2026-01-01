@@ -102,3 +102,5 @@ class ModulePricing(models.Model):
         return f"{self.pricing_rule.name} - {self.module.name}"
 
 
+
+

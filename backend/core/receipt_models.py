@@ -99,3 +99,5 @@ class ReceiptPrintLog(models.Model):
         return f"Receipt print: {self.sale.invoice_number} ({self.print_type})"
 
 
+
+

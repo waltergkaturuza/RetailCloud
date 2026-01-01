@@ -41,3 +41,5 @@ class ModulePricingAdmin(admin.ModelAdmin):
     autocomplete_fields = ['module']
 
 
+
+

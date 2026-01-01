@@ -56,3 +56,5 @@ class ErrorLogAdmin(admin.ModelAdmin):
     mark_resolved.short_description = "Mark selected errors as resolved"
 
 
+
+

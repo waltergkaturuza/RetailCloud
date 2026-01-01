@@ -90,3 +90,5 @@ class UserPermission(models.Model):
         return f"{self.user.email} - {self.module}.{self.permission}"
 
 
+
+

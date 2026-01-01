@@ -21,12 +21,13 @@ interface Package {
   name: string
   code: string
   description: string
-  price_monthly: number
-  price_yearly: number
+  price_monthly: number | string
+  price_yearly: number | string
   currency: string
   max_users: number
   max_branches: number
-  modules: Array<{ id: number; name: string; code: string; description: string }>
+  is_active?: boolean
+  modules?: Array<{ id: number; name: string; code: string; description: string }>
 }
 
 export default function Signup() {
@@ -199,15 +200,18 @@ export default function Signup() {
     }
     
     if (step === 1) {
-      if (validateStep1()) {
-        if (formData.signup_option === 'subscription' && !selectedPackage) {
-          setStep(2) // Go to package selection
-        } else {
-          setStep(step + 1)
-        }
-      } else {
+      if (!validateStep1()) {
         toast.error('Please fix the errors in the form')
+        return
       }
+      
+      // For subscription, require package selection
+      if (formData.signup_option === 'subscription' && !selectedPackage) {
+        toast.error('Please select a subscription plan')
+        return
+      }
+      
+      setStep(step + 1)
       return
     }
     
@@ -449,6 +453,102 @@ export default function Signup() {
 
               {formData.signup_option === 'subscription' && (
                 <div style={{ marginTop: '16px' }}>
+                  {/* Package Selection */}
+                  <div style={{ marginBottom: '24px' }}>
+                    <label style={{ display: 'block', marginBottom: '12px', fontWeight: '600', color: '#2c3e50', fontSize: '14px' }}>
+                      📦 Select Your Plan <span style={{ color: '#e74c3c' }}>*</span>
+                    </label>
+                    {packagesLoading ? (
+                      <div style={{ padding: '20px', textAlign: 'center', background: '#f8f9fa', borderRadius: '8px' }}>
+                        <div className="spinner" />
+                        <p style={{ marginTop: '12px', color: '#6c757d', fontSize: '13px' }}>Loading packages...</p>
+                      </div>
+                    ) : packages.length === 0 ? (
+                      <div style={{ padding: '16px', background: '#fff3cd', borderRadius: '8px', fontSize: '13px', color: '#856404' }}>
+                        ⚠️ No packages available. Please contact support.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '12px' }}>
+                        {packages.filter((pkg) => pkg.is_active).map((pkg) => {
+                          const priceMonthly = typeof pkg.price_monthly === 'number' ? pkg.price_monthly : parseFloat(pkg.price_monthly?.toString() || '0')
+                          const priceYearly = typeof pkg.price_yearly === 'number' ? pkg.price_yearly : parseFloat(pkg.price_yearly?.toString() || '0')
+                          const price = formData.subscription_type === 'yearly' ? priceYearly : priceMonthly
+                          const monthlyEquivalent = formData.subscription_type === 'yearly' ? (priceYearly / 12).toFixed(2) : priceMonthly.toFixed(2)
+                          const isSelected = selectedPackage?.id === pkg.id
+                          
+                          return (
+                            <div
+                              key={pkg.id}
+                              onClick={() => {
+                                setSelectedPackage(pkg)
+                                handleChange('package_id', pkg.id)
+                              }}
+                              style={{
+                                padding: '16px',
+                                border: isSelected ? '2px solid #667eea' : '2px solid #dee2e6',
+                                borderRadius: '8px',
+                                background: isSelected ? '#f0f4ff' : 'white',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                position: 'relative'
+                              }}
+                            >
+                              {isSelected && (
+                                <div style={{
+                                  position: 'absolute',
+                                  top: '8px',
+                                  right: '8px',
+                                  width: '20px',
+                                  height: '20px',
+                                  borderRadius: '50%',
+                                  background: '#667eea',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: 'white',
+                                  fontSize: '12px',
+                                  fontWeight: 'bold'
+                                }}>
+                                  ✓
+                                </div>
+                              )}
+                              <div style={{ fontWeight: '600', fontSize: '16px', marginBottom: '6px', color: '#2c3e50' }}>
+                                {pkg.name}
+                              </div>
+                              <div style={{ fontSize: '12px', color: '#6c757d', marginBottom: '12px', minHeight: '36px' }}>
+                                {pkg.description}
+                              </div>
+                              <div style={{ marginBottom: '12px' }}>
+                                <div style={{ fontSize: '24px', fontWeight: '700', color: '#667eea', marginBottom: '2px' }}>
+                                  {pkg.currency} {price.toFixed(2)}
+                                </div>
+                                <div style={{ fontSize: '11px', color: '#6c757d' }}>
+                                  per {formData.subscription_type === 'monthly' ? 'month' : 'year'}
+                                  {formData.subscription_type === 'yearly' && (
+                                    <span style={{ marginLeft: '6px', color: '#27ae60', fontWeight: '500' }}>
+                                      ({pkg.currency} {monthlyEquivalent}/mo)
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div style={{ borderTop: '1px solid #dee2e6', paddingTop: '12px', fontSize: '12px', color: '#6c757d' }}>
+                                <div>👥 {pkg.max_users === -1 ? 'Unlimited' : `Up to ${pkg.max_users}`} users</div>
+                                <div style={{ marginTop: '4px' }}>🏢 {pkg.max_branches === -1 ? 'Unlimited' : `Up to ${pkg.max_branches}`} branches</div>
+                                <div style={{ marginTop: '4px' }}>📦 {pkg.modules?.length || 0} modules</div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                    {!selectedPackage && !packagesLoading && packages.filter((pkg) => pkg.is_active).length > 0 && (
+                      <div style={{ marginTop: '12px', padding: '12px', background: '#fff3cd', borderRadius: '6px', fontSize: '12px', color: '#856404' }}>
+                        ⚠️ Please select a plan to continue
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Subscription Type and Payment Method */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
                     <div>
                       <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#2c3e50', fontSize: '14px' }}>
@@ -486,6 +586,38 @@ export default function Signup() {
                       </select>
                     </div>
                   </div>
+
+                  {/* Selected Package Summary */}
+                  {selectedPackage && (
+                    <div style={{
+                      marginTop: '16px',
+                      padding: '16px',
+                      background: 'linear-gradient(135deg, #667eea15 0%, #764ba215 100%)',
+                      borderRadius: '8px',
+                      border: '1px solid #667eea30'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                        <span style={{ fontSize: '24px' }}>📦</span>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: '600', color: '#2c3e50', fontSize: '16px', marginBottom: '4px' }}>
+                            Selected: {selectedPackage.name}
+                          </div>
+                          <div style={{ fontSize: '13px', color: '#6c757d' }}>
+                            {(() => {
+                              const monthlyPrice = typeof selectedPackage.price_monthly === 'number' ? selectedPackage.price_monthly : parseFloat(selectedPackage.price_monthly?.toString() || '0')
+                              const yearlyPrice = typeof selectedPackage.price_yearly === 'number' ? selectedPackage.price_yearly : parseFloat(selectedPackage.price_yearly?.toString() || '0')
+                              return formData.subscription_type === 'yearly' 
+                                ? `${selectedPackage.currency} ${yearlyPrice.toFixed(2)}/year (${selectedPackage.currency} ${(yearlyPrice / 12).toFixed(2)}/month)`
+                                : `${selectedPackage.currency} ${monthlyPrice.toFixed(2)}/month`
+                            })()}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#6c757d', marginTop: '8px' }}>
+                        💳 Payment details will be collected in the final step
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -752,8 +884,8 @@ export default function Signup() {
           </>
         )}
 
-        {/* Package Selection Step (Step 2 for subscriptions only) */}
-        {step === 2 && formData.signup_option === 'subscription' && (
+        {/* Package Selection Step (Step 2 for subscriptions only) - Now handled in Step 1, but keeping for backward compatibility */}
+        {step === 2 && formData.signup_option === 'subscription' && !selectedPackage && (
           <>
             <div style={{ marginBottom: '32px' }}>
               <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#2c3e50', marginBottom: '20px', paddingBottom: '12px', borderBottom: '1px solid #ecf0f1' }}>
@@ -771,8 +903,10 @@ export default function Signup() {
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
                   {packages.map((pkg) => {
-                    const price = formData.subscription_type === 'yearly' ? pkg.price_yearly : pkg.price_monthly
-                    const monthlyEquivalent = formData.subscription_type === 'yearly' ? (pkg.price_yearly / 12).toFixed(2) : pkg.price_monthly.toFixed(2)
+                    const priceMonthly = typeof pkg.price_monthly === 'number' ? pkg.price_monthly : parseFloat(pkg.price_monthly?.toString() || '0')
+                    const priceYearly = typeof pkg.price_yearly === 'number' ? pkg.price_yearly : parseFloat(pkg.price_yearly?.toString() || '0')
+                    const price = formData.subscription_type === 'yearly' ? priceYearly : priceMonthly
+                    const monthlyEquivalent = formData.subscription_type === 'yearly' ? (priceYearly / 12).toFixed(2) : priceMonthly.toFixed(2)
                     const isSelected = selectedPackage?.id === pkg.id
                     
                     return (
@@ -943,24 +1077,86 @@ export default function Signup() {
         )}
 
         {/* Payment Step for Subscriptions */}
-        {step === 4 && formData.signup_option === 'subscription' && selectedPackage && (
+        {step === 4 && formData.signup_option === 'subscription' && (
           <>
-            <div style={{ marginBottom: '32px' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#2c3e50', marginBottom: '20px', paddingBottom: '12px', borderBottom: '1px solid #ecf0f1' }}>
-                💳 Payment Information
-              </h3>
-              <PaymentForm
-                onSubmit={(data) => {
-                  setPaymentData(data)
-                  // Continue to final submission
-                  handleFinalSubmit()
-                }}
-                isLoading={loading}
-                currency={selectedPackage.currency}
-                amount={formData.subscription_type === 'yearly' ? selectedPackage.price_yearly : selectedPackage.price_monthly}
-                billingCycle={formData.subscription_type}
-              />
-            </div>
+            {!selectedPackage ? (
+              <div style={{ padding: '40px', textAlign: 'center', color: '#7f8c8d' }}>
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚠️</div>
+                <div style={{ fontSize: '16px', fontWeight: '500', marginBottom: '8px' }}>
+                  No package selected
+                </div>
+                <div style={{ fontSize: '14px', marginBottom: '24px' }}>
+                  Please go back and select a subscription plan.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="button"
+                >
+                  Go Back to Select Package
+                </button>
+              </div>
+            ) : (
+              <div style={{ marginBottom: '32px' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#2c3e50', marginBottom: '20px', paddingBottom: '12px', borderBottom: '1px solid #ecf0f1' }}>
+                  💳 Payment Information
+                </h3>
+                
+                {/* Selected Package Summary */}
+                <div style={{
+                  marginBottom: '24px',
+                  padding: '16px',
+                  background: 'linear-gradient(135deg, #667eea15 0%, #764ba215 100%)',
+                  borderRadius: '8px',
+                  border: '1px solid #667eea30'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <div>
+                      <div style={{ fontWeight: '600', color: '#2c3e50', fontSize: '16px', marginBottom: '4px' }}>
+                        {selectedPackage.name}
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#6c757d' }}>
+                        {(() => {
+                          const monthlyPrice = typeof selectedPackage.price_monthly === 'number' ? selectedPackage.price_monthly : parseFloat(selectedPackage.price_monthly?.toString() || '0')
+                          const yearlyPrice = typeof selectedPackage.price_yearly === 'number' ? selectedPackage.price_yearly : parseFloat(selectedPackage.price_yearly?.toString() || '0')
+                          return formData.subscription_type === 'yearly' 
+                            ? `Yearly subscription - ${selectedPackage.currency} ${yearlyPrice.toFixed(2)}/year`
+                            : `Monthly subscription - ${selectedPackage.currency} ${monthlyPrice.toFixed(2)}/month`
+                        })()}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '24px', fontWeight: '700', color: '#667eea' }}>
+                        {(() => {
+                          const monthlyPrice = typeof selectedPackage.price_monthly === 'number' ? selectedPackage.price_monthly : parseFloat(selectedPackage.price_monthly?.toString() || '0')
+                          const yearlyPrice = typeof selectedPackage.price_yearly === 'number' ? selectedPackage.price_yearly : parseFloat(selectedPackage.price_yearly?.toString() || '0')
+                          return `${selectedPackage.currency} ${formData.subscription_type === 'yearly' ? yearlyPrice.toFixed(2) : monthlyPrice.toFixed(2)}`
+                        })()}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#6c757d' }}>
+                        {formData.subscription_type === 'yearly' ? 'per year' : 'per month'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <PaymentForm
+                  onSubmit={(data) => {
+                    setPaymentData(data)
+                    // Continue to final submission
+                    handleFinalSubmit()
+                  }}
+                  isLoading={loading}
+                  currency={selectedPackage.currency}
+                  amount={(() => {
+                    const monthlyPrice = typeof selectedPackage.price_monthly === 'number' ? selectedPackage.price_monthly : parseFloat(selectedPackage.price_monthly?.toString() || '0')
+                    const yearlyPrice = typeof selectedPackage.price_yearly === 'number' ? selectedPackage.price_yearly : parseFloat(selectedPackage.price_yearly?.toString() || '0')
+                    return formData.subscription_type === 'yearly' ? yearlyPrice : monthlyPrice
+                  })()}
+                  billingCycle={formData.subscription_type}
+                />
+              </div>
+            )}
           </>
         )}
 

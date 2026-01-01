@@ -284,6 +284,8 @@ code {
   100% { transform: rotate(360deg); }
 }
 
+/* Light mode styles are in light-mode.css */
+
 /* Utility Classes */
 .text-center {
   text-align: center;

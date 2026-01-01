@@ -1,6 +1,7 @@
 """
 Security views for 2FA, password policies, sessions, and security management.
 """
+import logging
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -8,6 +9,8 @@ from django.utils import timezone
 from django.contrib.sessions.models import Session
 from django.contrib.sessions.backends.db import SessionStore
 from django.core.cache import cache
+
+logger = logging.getLogger(__name__)
 
 from .models import User
 from .security_models import (

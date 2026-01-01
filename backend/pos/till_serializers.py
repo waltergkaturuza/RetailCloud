@@ -118,3 +118,5 @@ class DayEndReportSerializer(serializers.ModelSerializer):
         read_only_fields = ['generated_at', 'generated_by']
 
 
+
+

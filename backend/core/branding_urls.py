@@ -8,3 +8,5 @@ urlpatterns = [
     path('branding/', TenantBrandingView.as_view(), name='tenant-branding'),
 ]
 
+
+

@@ -183,3 +183,5 @@ send_mail(
 - **Django Email Docs**: https://docs.djangoproject.com/en/stable/topics/email/
 - **Gmail App Passwords**: https://support.google.com/accounts/answer/185833
 
+
+

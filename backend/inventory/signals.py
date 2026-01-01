@@ -39,3 +39,5 @@ def create_stock_levels_for_product(sender, instance, created, **kwargs):
             # Log error but don't fail product creation
             logger.error(f"Error creating stock levels for product {instance.id}: {str(e)}", exc_info=True)
 
+
+

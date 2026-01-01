@@ -221,3 +221,5 @@ def send_welcome_email(user_email: str, company_name: str, username: str, login_
         logger.error(f"Failed to send welcome email to {user_email}: {str(e)}", exc_info=True)
         return False
 
+
+

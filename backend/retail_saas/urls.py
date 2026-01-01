@@ -34,6 +34,7 @@ urlpatterns = [
     path('api/tenant/', include('core.tenant_signup_urls')),
     path('api/owner/', include('core.owner_urls')),
     path('api/auth/', include('core.email_verification_urls')),
+    path('api/marketing/', include('marketing.urls')),
 ]
 
 if settings.DEBUG:

@@ -67,3 +67,5 @@ class CurrentExchangeRateSerializer(serializers.Serializer):
     is_locked = serializers.BooleanField()
 
 
+
+

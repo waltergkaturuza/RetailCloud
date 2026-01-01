@@ -33,3 +33,5 @@ class Command(BaseCommand):
         else:
             self.stdout.write(self.style.WARNING('Default password policy already exists.'))
 
+
+

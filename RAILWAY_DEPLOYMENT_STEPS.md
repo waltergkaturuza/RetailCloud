@@ -18,7 +18,7 @@ Follow these steps to deploy your RetailCloud system to Railway.
 
 1. Click "**New Project**"
 2. Select "**Deploy from GitHub repo**"
-3. Select your repository: `Shop Management`
+3. Select your repository: `RetailCloud`
 4. Railway will detect the Dockerfile automatically
 
 ## Step 3: Configure Backend Service

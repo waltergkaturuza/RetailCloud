@@ -15,6 +15,10 @@ import Reports from './pages/Reports'
 import Purchases from './pages/Purchases'
 import Returns from './pages/Returns'
 import Inventory from './pages/Inventory'
+import WarehouseManagement from './components/AdvancedInventory/WarehouseManagement'
+import DemandForecasting from './components/AdvancedInventory/DemandForecasting'
+import StockAnalysis from './components/AdvancedInventory/StockAnalysis'
+import BulkOperations from './components/AdvancedInventory/BulkOperations'
 import Suppliers from './pages/Suppliers'
 import Users from './pages/Users'
 import PermissionsMatrix from './pages/PermissionsMatrix'
@@ -45,6 +49,7 @@ import { Toaster } from 'react-hot-toast'
 import { registerServiceWorker, registerNetworkListener } from './lib/offline'
 import { useEffect } from 'react'
 import './styles/dark-mode.css'
+import './styles/light-mode.css'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -131,6 +136,26 @@ function App() {
                   <Route path="inventory" element={
                     <RoleProtectedRoute requiredPermission="canAccessInventory">
                       <Inventory />
+                    </RoleProtectedRoute>
+                  } />
+                  <Route path="warehouse-management" element={
+                    <RoleProtectedRoute requiredPermission="canAccessInventory">
+                      <WarehouseManagement />
+                    </RoleProtectedRoute>
+                  } />
+                  <Route path="demand-forecasting" element={
+                    <RoleProtectedRoute requiredPermission="canAccessInventory">
+                      <DemandForecasting />
+                    </RoleProtectedRoute>
+                  } />
+                  <Route path="stock-analysis" element={
+                    <RoleProtectedRoute requiredPermission="canAccessInventory">
+                      <StockAnalysis />
+                    </RoleProtectedRoute>
+                  } />
+                  <Route path="bulk-operations" element={
+                    <RoleProtectedRoute requiredPermission="canAccessInventory">
+                      <BulkOperations />
                     </RoleProtectedRoute>
                   } />
                   <Route path="suppliers" element={

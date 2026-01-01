@@ -16,5 +16,6 @@ router.register(r'tenant-modules', TenantModuleViewSet, basename='tenant-module'
 urlpatterns = [
     path('', include(router.urls)),
     path('modules/', SubscriptionViewSet.as_view({'get': 'enabled_modules'}), name='modules-list'),
+    path('current/', SubscriptionViewSet.as_view({'get': 'current'}), name='subscription-current'),
 ]
 

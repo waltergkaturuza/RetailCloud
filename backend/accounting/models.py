@@ -214,3 +214,5 @@ class TaxTransaction(models.Model):
             self.tax_number = f"{prefix}-{num:04d}"
         super().save(*args, **kwargs)
 
+
+

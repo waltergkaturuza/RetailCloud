@@ -233,3 +233,19 @@ class Batch(models.Model):
             return self.expiry_date <= (timezone.now().date() + timedelta(days=30))
         return False
 
+
+# Import advanced models at the end to avoid circular imports
+try:
+    from .advanced_models import (
+        # WMS Models
+        Warehouse, WarehouseLocation, StockLocation, PickList, PickListItem,
+        PutAway, PutAwayItem, CycleCount, CycleCountItem, WarehouseTransfer, WarehouseTransferItem,
+        # Advanced Stock Management
+        SafetyStock, ABCAnalysis, DeadStock, StockAging, SupplierPerformance,
+        # Inventory Valuation
+        InventoryValuation, CostLayer, CostAdjustment, InventoryWriteOff,
+    )
+except ImportError:
+    # Models not yet migrated
+    pass
+

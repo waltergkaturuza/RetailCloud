@@ -78,3 +78,5 @@ class TenantCategoryUpdateSerializer(serializers.Serializer):
     auto_activate_modules = serializers.BooleanField(default=True, help_text="Auto-activate recommended modules")
 
 
+
+

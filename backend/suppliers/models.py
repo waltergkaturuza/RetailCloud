@@ -82,3 +82,5 @@ class SupplierTransaction(models.Model):
         return f"{self.supplier.name} - {self.transaction_type}: {self.amount}"
 
 
+
+

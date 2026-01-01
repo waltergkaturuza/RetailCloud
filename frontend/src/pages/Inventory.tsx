@@ -4,6 +4,10 @@ import api from '../lib/api'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import toast from 'react-hot-toast'
+import WarehouseManagement from '../components/AdvancedInventory/WarehouseManagement'
+import DemandForecasting from '../components/AdvancedInventory/DemandForecasting'
+import StockAnalysis from '../components/AdvancedInventory/StockAnalysis'
+import BulkOperations from '../components/AdvancedInventory/BulkOperations'
 
 export default function Inventory() {
   const [searchQuery, setSearchQuery] = useState('')
@@ -11,7 +15,7 @@ export default function Inventory() {
   const [filterLowStock, setFilterLowStock] = useState(false)
   const [showAdjustmentForm, setShowAdjustmentForm] = useState<any>(null)
   const [selectedProduct, setSelectedProduct] = useState<any>(null)
-  const [activeTab, setActiveTab] = useState<'stock' | 'movements' | 'batches'>('stock')
+  const [activeTab, setActiveTab] = useState<'stock' | 'movements' | 'batches' | 'warehouse' | 'forecasting' | 'analysis' | 'bulk'>('stock')
   const queryClient = useQueryClient()
 
   // Fetch branches for filtering and adjustment
@@ -204,6 +208,70 @@ export default function Inventory() {
           }}
         >
           Batches ({batches.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('warehouse')}
+          style={{
+            padding: '12px 24px',
+            background: 'transparent',
+            border: 'none',
+            borderBottom: activeTab === 'warehouse' ? '3px solid #3498db' : '3px solid transparent',
+            color: activeTab === 'warehouse' ? '#3498db' : '#7f8c8d',
+            fontWeight: activeTab === 'warehouse' ? '600' : '400',
+            cursor: 'pointer',
+            fontSize: '14px',
+            transition: 'all 0.2s'
+          }}
+        >
+          🏭 Warehouse
+        </button>
+        <button
+          onClick={() => setActiveTab('forecasting')}
+          style={{
+            padding: '12px 24px',
+            background: 'transparent',
+            border: 'none',
+            borderBottom: activeTab === 'forecasting' ? '3px solid #3498db' : '3px solid transparent',
+            color: activeTab === 'forecasting' ? '#3498db' : '#7f8c8d',
+            fontWeight: activeTab === 'forecasting' ? '600' : '400',
+            cursor: 'pointer',
+            fontSize: '14px',
+            transition: 'all 0.2s'
+          }}
+        >
+          🔮 Forecasting
+        </button>
+        <button
+          onClick={() => setActiveTab('analysis')}
+          style={{
+            padding: '12px 24px',
+            background: 'transparent',
+            border: 'none',
+            borderBottom: activeTab === 'analysis' ? '3px solid #3498db' : '3px solid transparent',
+            color: activeTab === 'analysis' ? '#3498db' : '#7f8c8d',
+            fontWeight: activeTab === 'analysis' ? '600' : '400',
+            cursor: 'pointer',
+            fontSize: '14px',
+            transition: 'all 0.2s'
+          }}
+        >
+          📈 Analysis
+        </button>
+        <button
+          onClick={() => setActiveTab('bulk')}
+          style={{
+            padding: '12px 24px',
+            background: 'transparent',
+            border: 'none',
+            borderBottom: activeTab === 'bulk' ? '3px solid #3498db' : '3px solid transparent',
+            color: activeTab === 'bulk' ? '#3498db' : '#7f8c8d',
+            fontWeight: activeTab === 'bulk' ? '600' : '400',
+            cursor: 'pointer',
+            fontSize: '14px',
+            transition: 'all 0.2s'
+          }}
+        >
+          📥 Bulk Ops
         </button>
       </div>
 
@@ -475,6 +543,12 @@ export default function Inventory() {
           )}
         </Card>
       )}
+
+      {/* Advanced Inventory Tabs */}
+      {activeTab === 'warehouse' && <WarehouseManagement />}
+      {activeTab === 'forecasting' && <DemandForecasting />}
+      {activeTab === 'analysis' && <StockAnalysis />}
+      {activeTab === 'bulk' && <BulkOperations />}
 
       {/* Batches Tab */}
       {activeTab === 'batches' && (

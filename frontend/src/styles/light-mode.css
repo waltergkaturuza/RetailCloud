@@ -1,0 +1,111 @@
+/* Light Mode Contrast Rules - Ensure no light text on light backgrounds */
+
+/* CSS Variables for light mode */
+body:not(.dark-mode) {
+  --text-primary: #2c3e50;
+  --text-secondary: #7f8c8d;
+  --text-muted: #6c757d;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f7fa;
+  --border-color: #ecf0f1;
+}
+
+/* Default text color for light mode */
+body:not(.dark-mode) {
+  color: var(--text-primary);
+}
+
+/* Ensure headings have dark text in light mode */
+body:not(.dark-mode) h1,
+body:not(.dark-mode) h2,
+body:not(.dark-mode) h3,
+body:not(.dark-mode) h4,
+body:not(.dark-mode) h5,
+body:not(.dark-mode) h6 {
+  color: var(--text-primary) !important;
+}
+
+/* Ensure paragraphs, spans, divs have dark text in light mode (unless explicitly colored) */
+body:not(.dark-mode) p,
+body:not(.dark-mode) span,
+body:not(.dark-mode) div,
+body:not(.dark-mode) td,
+body:not(.dark-mode) th,
+body:not(.dark-mode) label {
+  color: inherit;
+}
+
+/* Override white text on elements without dark backgrounds (preserve button colors) */
+body:not(.dark-mode) [style*="color: white"]:not([style*="background: #"]):not([style*="background:#"]):not([style*="background:rgb"]):not([style*="background:rgba"]):not(button):not(.btn),
+body:not(.dark-mode) [style*="color:white"]:not([style*="background: #"]):not([style*="background:#"]):not([style*="background:rgb"]):not([style*="background:rgba"]):not(button):not(.btn),
+body:not(.dark-mode) [style*="color: #fff"]:not([style*="background: #"]):not([style*="background:#"]):not([style*="background:rgb"]):not([style*="background:rgba"]):not(button):not(.btn),
+body:not(.dark-mode) [style*="color:#fff"]:not([style*="background: #"]):not([style*="background:#"]):not([style*="background:rgb"]):not([style*="background:rgba"]):not(button):not(.btn),
+body:not(.dark-mode) [style*="color: #ffffff"]:not([style*="background: #"]):not([style*="background:#"]):not([style*="background:rgb"]):not([style*="background:rgba"]):not(button):not(.btn),
+body:not(.dark-mode) [style*="color:#ffffff"]:not([style*="background: #"]):not([style*="background:#"]):not([style*="background:rgb"]):not([style*="background:rgba"]):not(button):not(.btn) {
+  color: var(--text-primary) !important;
+}
+
+/* Ensure text on white/light backgrounds is dark */
+body:not(.dark-mode) [style*="background: white"]:not([style*="color: #"]):not([style*="color:#"]):not([style*="color:rgb"]):not([style*="color:rgba"]):not(button):not(.btn),
+body:not(.dark-mode) [style*="background:white"]:not([style*="color: #"]):not([style*="color:#"]):not([style*="color:rgb"]):not([style*="color:rgba"]):not(button):not(.btn),
+body:not(.dark-mode) [style*="background: #fff"]:not([style*="color: #"]):not([style*="color:#"]):not([style*="color:rgb"]):not([style*="color:rgba"]):not(button):not(.btn),
+body:not(.dark-mode) [style*="background:#fff"]:not([style*="color: #"]):not([style*="color:#"]):not([style*="color:rgb"]):not([style*="color:rgba"]):not(button):not(.btn),
+body:not(.dark-mode) [style*="background: #ffffff"]:not([style*="color: #"]):not([style*="color:#"]):not([style*="color:rgb"]):not([style*="color:rgba"]):not(button):not(.btn),
+body:not(.dark-mode) [style*="background:#ffffff"]:not([style*="color: #"]):not([style*="color:#"]):not([style*="color:rgb"]):not([style*="color:rgba"]):not(button):not(.btn),
+body:not(.dark-mode) [style*="background: #f5f5f5"]:not([style*="color: #"]):not([style*="color:#"]):not([style*="color:rgb"]):not([style*="color:rgba"]):not(button):not(.btn),
+body:not(.dark-mode) [style*="background:#f5f5f5"]:not([style*="color: #"]):not([style*="color:#"]):not([style*="color:rgb"]):not([style*="color:rgba"]):not(button):not(.btn),
+body:not(.dark-mode) [style*="background: #f8f9fa"]:not([style*="color: #"]):not([style*="color:#"]):not([style*="color:rgb"]):not([style*="color:rgba"]):not(button):not(.btn),
+body:not(.dark-mode) [style*="background:#f8f9fa"]:not([style*="color: #"]):not([style*="color:#"]):not([style*="color:rgb"]):not([style*="color:rgba"]):not(button):not(.btn) {
+  color: var(--text-primary) !important;
+}
+
+/* Ensure child elements of light backgrounds have dark text */
+body:not(.dark-mode) [style*="background: white"] *:not(button):not(.btn):not([style*="background: #"]):not([style*="background:#"]):not([style*="background:rgb"]):not([style*="background:rgba"]),
+body:not(.dark-mode) [style*="background:white"] *:not(button):not(.btn):not([style*="background: #"]):not([style*="background:#"]):not([style*="background:rgb"]):not([style*="background:rgba"]),
+body:not(.dark-mode) [style*="background: #fff"] *:not(button):not(.btn):not([style*="background: #"]):not([style*="background:#"]):not([style*="background:rgb"]):not([style*="background:rgba"]),
+body:not(.dark-mode) [style*="background:#fff"] *:not(button):not(.btn):not([style*="background: #"]):not([style*="background:#"]):not([style*="background:rgb"]):not([style*="background:rgba"]),
+body:not(.dark-mode) [style*="background: #ffffff"] *:not(button):not(.btn):not([style*="background: #"]):not([style*="background:#"]):not([style*="background:rgb"]):not([style*="background:rgba"]),
+body:not(.dark-mode) [style*="background:#ffffff"] *:not(button):not(.btn):not([style*="background: #"]):not([style*="background:#"]):not([style*="background:rgb"]):not([style*="background:rgba"]),
+body:not(.dark-mode) [style*="background: #f5f5f5"] *:not(button):not(.btn):not([style*="background: #"]):not([style*="background:#"]):not([style*="background:rgb"]):not([style*="background:rgba"]),
+body:not(.dark-mode) [style*="background:#f5f5f5"] *:not(button):not(.btn):not([style*="background: #"]):not([style*="background:#"]):not([style*="background:rgb"]):not([style*="background:rgba"]),
+body:not(.dark-mode) [style*="background: #f8f9fa"] *:not(button):not(.btn):not([style*="background: #"]):not([style*="background:#"]):not([style*="background:rgb"]):not([style*="background:rgba"]),
+body:not(.dark-mode) [style*="background:#f8f9fa"] *:not(button):not(.btn):not([style*="background: #"]):not([style*="background:#"]):not([style*="background:rgb"]):not([style*="background:rgba"]) {
+  color: var(--text-primary);
+}
+
+/* Ensure cards have proper text contrast in light mode */
+body:not(.dark-mode) .card {
+  color: var(--text-primary);
+}
+
+body:not(.dark-mode) .card *:not(button):not(.btn):not([style*="background: #"]):not([style*="background:#"]):not([style*="background:rgb"]):not([style*="background:rgba"]) {
+  color: inherit;
+}
+
+/* Ensure table text is visible in light mode */
+body:not(.dark-mode) .table {
+  color: var(--text-primary);
+}
+
+body:not(.dark-mode) .table td,
+body:not(.dark-mode) .table th {
+  color: var(--text-primary);
+}
+
+/* Preserve button colors - buttons with colored backgrounds should keep white text */
+body:not(.dark-mode) button[style*="background: #349"],
+body:not(.dark-mode) button[style*="background:#349"],
+body:not(.dark-mode) button[style*="background: #667"],
+body:not(.dark-mode) button[style*="background:#667"],
+body:not(.dark-mode) button[style*="background: #e74"],
+body:not(.dark-mode) button[style*="background:#e74"],
+body:not(.dark-mode) button[style*="background: #2e"],
+body:not(.dark-mode) button[style*="background:#2e"],
+body:not(.dark-mode) button[style*="background: #f39"],
+body:not(.dark-mode) button[style*="background:#f39"],
+body:not(.dark-mode) .btn-primary,
+body:not(.dark-mode) .btn-success,
+body:not(.dark-mode) .btn-danger,
+body:not(.dark-mode) .btn-warning {
+  color: white !important;
+}

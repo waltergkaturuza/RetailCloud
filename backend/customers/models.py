@@ -108,3 +108,5 @@ class CustomerTransaction(models.Model):
         return f"{self.customer.full_name} - {self.transaction_type}: {self.amount}"
 
 
+
+

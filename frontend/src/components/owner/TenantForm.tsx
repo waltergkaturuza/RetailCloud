@@ -85,15 +85,25 @@ export default function TenantForm({ tenant, onClose, onSuccess }: TenantFormPro
   })
 
   // Fetch business categories
-  const { data: categoriesData } = useQuery({
+  const { data: categoriesData, isLoading: categoriesLoading, error: categoriesError } = useQuery({
     queryKey: ['business-categories'],
     queryFn: async () => {
       const response = await api.get('/business-categories/categories/')
-      return response.data
+      // Handle paginated response or direct array
+      const data = response.data
+      if (Array.isArray(data)) {
+        return data
+      }
+      // If paginated, return results array
+      if (data && Array.isArray(data.results)) {
+        return data.results
+      }
+      // Fallback to empty array
+      return []
     },
   })
 
-  const categories: BusinessCategory[] = categoriesData || []
+  const categories: BusinessCategory[] = Array.isArray(categoriesData) ? categoriesData : []
 
   // Auto-generate slug from company name
   useEffect(() => {
@@ -762,14 +772,37 @@ export default function TenantForm({ tenant, onClose, onSuccess }: TenantFormPro
                     onChange={(e) => handleChange('business_category', e.target.value ? parseInt(e.target.value) : null)}
                     className="input"
                     style={{ width: '100%' }}
+                    disabled={categoriesLoading}
                   >
-                    <option value="">Select Category</option>
+                    <option value="">
+                      {categoriesLoading ? 'Loading categories...' : 'Select Category'}
+                    </option>
+                    {categoriesError && (
+                      <option value="" disabled style={{ color: '#e74c3c' }}>
+                        Error loading categories
+                      </option>
+                    )}
+                    {categories.length === 0 && !categoriesLoading && !categoriesError && (
+                      <option value="" disabled>
+                        No categories available
+                      </option>
+                    )}
                     {categories.map((cat) => (
                       <option key={cat.id} value={cat.id}>
-                        {cat.icon} {cat.name}
+                        {cat.icon || '📦'} {cat.name}
                       </option>
                     ))}
                   </select>
+                  {categoriesError && (
+                    <p style={{ margin: '4px 0 0', color: '#e74c3c', fontSize: '12px' }}>
+                      Failed to load categories. Please refresh the page.
+                    </p>
+                  )}
+                  {categories.length > 0 && !categoriesLoading && (
+                    <p style={{ margin: '4px 0 0', color: '#7f8c8d', fontSize: '12px' }}>
+                      {categories.length} categories available
+                    </p>
+                  )}
                 </div>
 
                 <div>

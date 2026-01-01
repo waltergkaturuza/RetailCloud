@@ -26,3 +26,5 @@ class TaxTransactionAdmin(admin.ModelAdmin):
     readonly_fields = ['tax_number', 'created_at', 'updated_at']
     date_hierarchy = 'date'
 
+
+

@@ -253,21 +253,68 @@ class TenantModuleViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def pricing_summary(self, request):
         """Get pricing summary for tenant (current usage and costs)."""
-        from core.pricing_service import get_pricing_summary
-        
-        tenant = self._get_tenant(request)
-        if not tenant:
-            # Return empty/default summary instead of 404 for better UX
+        try:
+            from core.pricing_service import get_pricing_summary
+            
+            tenant = self._get_tenant(request)
+            if not tenant:
+                # Return empty/default summary instead of 404 for better UX
+                return Response({
+                    'total_monthly': 0,
+                    'total_yearly': 0,
+                    'currency': 'USD',
+                    'modules': [],
+                    'breakdown': []
+                })
+            
+            summary = get_pricing_summary(tenant)
+            
+            # Transform response to match frontend expectations
             return Response({
-                'total_monthly': 0,
-                'total_yearly': 0,
-                'currency': 'USD',
-                'modules': [],
-                'breakdown': []
+                'total_monthly': float(summary['monthly']['total']),
+                'total_yearly': float(summary['yearly']['total']),
+                'currency': summary['currency'],
+                'yearly_savings': float(summary.get('yearly_savings', 0)),
+                'breakdown': [
+                    {
+                        'name': 'Category Base',
+                        'amount': float(summary['monthly']['base_cost']),
+                        'type': 'category'
+                    },
+                    {
+                        'name': 'Modules',
+                        'amount': float(summary['monthly']['module_cost']),
+                        'type': 'modules'
+                    },
+                    {
+                        'name': 'Users',
+                        'amount': float(summary['monthly']['user_cost']),
+                        'type': 'users',
+                        'count': summary['monthly']['breakdown']['users']['count']
+                    },
+                    {
+                        'name': 'Branches',
+                        'amount': float(summary['monthly']['branch_cost']),
+                        'type': 'branches',
+                        'count': summary['monthly']['breakdown']['branches']['count']
+                    }
+                ]
             })
-        
-        summary = get_pricing_summary(tenant)
-        return Response(summary)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error in pricing_summary endpoint: {str(e)}", exc_info=True)
+            return Response(
+                {
+                    'error': str(e),
+                    'total_monthly': 0,
+                    'total_yearly': 0,
+                    'currency': 'USD',
+                    'modules': [],
+                    'breakdown': []
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
     @action(detail=False, methods=['get'])
     def pending_approval(self, request):

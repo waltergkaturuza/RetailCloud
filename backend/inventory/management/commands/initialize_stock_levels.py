@@ -82,3 +82,5 @@ class Command(BaseCommand):
             f'\n✓ Completed! Processed {total_products_processed} product(s) and created {total_stock_levels_created} stock level(s).'
         ))
 
+
+

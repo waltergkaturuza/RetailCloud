@@ -34,3 +34,5 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('Pricing rules setup complete!'))
 
 
+
+

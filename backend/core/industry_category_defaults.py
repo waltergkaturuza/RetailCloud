@@ -165,3 +165,5 @@ def get_all_default_categories() -> Dict[str, List[Dict[str, str]]]:
     return INDUSTRY_DEFAULT_CATEGORIES
 
 
+
+

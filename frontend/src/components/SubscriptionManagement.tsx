@@ -3,13 +3,16 @@
  * Shows current subscription, invoices, payment history, and failed payments
  */
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../lib/api'
 import Card from './ui/Card'
 import Button from './ui/Button'
+import PaymentForm, { PaymentData } from './PaymentForm'
+import toast from 'react-hot-toast'
 
 interface Subscription {
   id: number
+  package: number | { id: number; name: string }
   package_name: string
   billing_cycle: string
   status: string
@@ -87,6 +90,11 @@ interface Package {
 
 export default function SubscriptionManagement() {
   const [activeSubTab, setActiveSubTab] = useState<'overview' | 'packages' | 'pricing' | 'invoices' | 'payments' | 'failed'>('overview')
+  const [showCompare, setShowCompare] = useState(false)
+  const [selectedPackageModules, setSelectedPackageModules] = useState<Package | null>(null)
+  const [selectedPackageForPayment, setSelectedPackageForPayment] = useState<Package | null>(null)
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly')
+  const queryClient = useQueryClient()
 
   // Fetch pricing summary
   const { data: pricingSummary, isLoading: pricingLoading } = useQuery({
@@ -119,7 +127,7 @@ export default function SubscriptionManagement() {
     queryKey: ['current-subscription'],
     queryFn: async () => {
       try {
-        const response = await api.get('/subscriptions/subscriptions/current/')
+        const response = await api.get('/subscriptions/current/')
         return response.data
       } catch (error: any) {
         // Return null for 404 (no subscription found) instead of throwing
@@ -207,6 +215,27 @@ export default function SubscriptionManagement() {
     const aPrice = typeof a.price_monthly === 'number' ? a.price_monthly : parseFloat(a.price_monthly?.toString() || '0')
     const bPrice = typeof b.price_monthly === 'number' ? b.price_monthly : parseFloat(b.price_monthly?.toString() || '0')
     return aPrice - bPrice
+  })
+
+  // Subscription upgrade mutation
+  const upgradeMutation = useMutation({
+    mutationFn: async ({ packageId, paymentData, billingCycle }: { packageId: number, paymentData: PaymentData, billingCycle: 'monthly' | 'yearly' }) => {
+      const response = await api.put(`/subscriptions/subscriptions/${currentSubscription?.id || ''}/`, {
+        package: packageId,
+        billing_cycle: billingCycle,
+        payment_data: paymentData
+      })
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['current-subscription'] })
+      queryClient.invalidateQueries({ queryKey: ['subscription-history'] })
+      setSelectedPackageForPayment(null)
+      toast.success('Subscription upgraded successfully!')
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Failed to upgrade subscription')
+    }
   })
 
   const getStatusColor = (status: string) => {
@@ -565,6 +594,565 @@ export default function SubscriptionManagement() {
               </div>
             </Card>
           )}
+        </div>
+      )}
+
+      {/* Available Packages Tab */}
+      {activeSubTab === 'packages' && (
+        <div>
+          <Card title="Available Plans">
+            <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontSize: '14px', color: '#7f8c8d' }}>
+                {availablePackages.length} plan{availablePackages.length !== 1 ? 's' : ''} available
+              </div>
+              {availablePackages.length > 1 && (
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowCompare(!showCompare)}
+                  style={{ fontSize: '14px' }}
+                >
+                  {showCompare ? '📋 Hide Comparison' : '📊 Compare Plans'}
+                </Button>
+              )}
+            </div>
+            
+            {showCompare ? (
+              // Comparison Table View
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid #e9ecef' }}>
+                      <th style={{ padding: '16px', textAlign: 'left', fontWeight: '600', fontSize: '14px', color: '#2c3e50' }}>Feature</th>
+                      {availablePackages.map((pkg: Package) => (
+                        <th key={pkg.id} style={{ padding: '16px', textAlign: 'center', fontWeight: '600', fontSize: '14px', color: '#2c3e50', background: ((typeof currentSubscription?.package === 'object' ? currentSubscription?.package?.id : currentSubscription?.package) === pkg.id) ? '#f8f9ff' : 'transparent' }}>
+                          {pkg.name}
+                          {((typeof currentSubscription?.package === 'object' ? currentSubscription?.package?.id : currentSubscription?.package) === pkg.id) && (
+                            <div style={{ fontSize: '11px', color: '#667eea', marginTop: '4px', fontWeight: '500' }}>CURRENT</div>
+                          )}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {/* Price Row */}
+                    <tr style={{ borderBottom: '1px solid #e9ecef' }}>
+                      <td style={{ padding: '16px', fontWeight: '600', fontSize: '14px', color: '#2c3e50' }}>Monthly Price</td>
+                      {availablePackages.map((pkg: Package) => {
+                        const monthlyPrice = typeof pkg.price_monthly === 'number' ? pkg.price_monthly : parseFloat(pkg.price_monthly?.toString() || '0')
+                        return (
+                          <td key={pkg.id} style={{ padding: '16px', textAlign: 'center', fontSize: '16px', fontWeight: '600' }}>
+                            {pkg.currency || 'USD'} {monthlyPrice.toFixed(2)}/mo
+                          </td>
+                        )
+                      })}
+                    </tr>
+                    {/* Yearly Price Row */}
+                    <tr style={{ borderBottom: '1px solid #e9ecef' }}>
+                      <td style={{ padding: '16px', fontWeight: '600', fontSize: '14px', color: '#2c3e50' }}>Yearly Price</td>
+                      {availablePackages.map((pkg: Package) => {
+                        const yearlyPrice = typeof pkg.price_yearly === 'number' ? pkg.price_yearly : parseFloat(pkg.price_yearly?.toString() || '0')
+                        const monthlyPrice = typeof pkg.price_monthly === 'number' ? pkg.price_monthly : parseFloat(pkg.price_monthly?.toString() || '0')
+                        const savings = yearlyPrice > 0 ? (monthlyPrice * 12) - yearlyPrice : 0
+                        return (
+                          <td key={pkg.id} style={{ padding: '16px', textAlign: 'center', fontSize: '14px' }}>
+                            {yearlyPrice > 0 ? (
+                              <div>
+                                <div>{pkg.currency || 'USD'} {yearlyPrice.toFixed(2)}/yr</div>
+                                {savings > 0 && (
+                                  <div style={{ fontSize: '12px', color: '#28a745', fontWeight: '600', marginTop: '4px' }}>
+                                    Save {pkg.currency || 'USD'} {savings.toFixed(2)}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <span style={{ color: '#7f8c8d' }}>N/A</span>
+                            )}
+                          </td>
+                        )
+                      })}
+                    </tr>
+                    {/* Description Row */}
+                    <tr style={{ borderBottom: '1px solid #e9ecef' }}>
+                      <td style={{ padding: '16px', fontWeight: '600', fontSize: '14px', color: '#2c3e50' }}>Description</td>
+                      {availablePackages.map((pkg: Package) => (
+                        <td key={pkg.id} style={{ padding: '16px', textAlign: 'center', fontSize: '13px', color: '#7f8c8d' }}>
+                          {pkg.description || '-'}
+                        </td>
+                      ))}
+                    </tr>
+                    {/* Max Users Row */}
+                    <tr style={{ borderBottom: '1px solid #e9ecef' }}>
+                      <td style={{ padding: '16px', fontWeight: '600', fontSize: '14px', color: '#2c3e50' }}>Max Users</td>
+                      {availablePackages.map((pkg: Package) => (
+                        <td key={pkg.id} style={{ padding: '16px', textAlign: 'center', fontSize: '14px' }}>
+                          {pkg.max_users === -1 ? 'Unlimited' : pkg.max_users}
+                        </td>
+                      ))}
+                    </tr>
+                    {/* Max Branches Row */}
+                    <tr style={{ borderBottom: '1px solid #e9ecef' }}>
+                      <td style={{ padding: '16px', fontWeight: '600', fontSize: '14px', color: '#2c3e50' }}>Max Branches</td>
+                      {availablePackages.map((pkg: Package) => (
+                        <td key={pkg.id} style={{ padding: '16px', textAlign: 'center', fontSize: '14px' }}>
+                          {pkg.max_branches === -1 ? 'Unlimited' : pkg.max_branches}
+                        </td>
+                      ))}
+                    </tr>
+                    {/* Modules Row */}
+                    <tr style={{ borderBottom: '1px solid #e9ecef' }}>
+                      <td style={{ padding: '16px', fontWeight: '600', fontSize: '14px', color: '#2c3e50' }}>Modules</td>
+                      {availablePackages.map((pkg: Package) => (
+                        <td key={pkg.id} style={{ padding: '16px', textAlign: 'center', fontSize: '14px' }}>
+                          {pkg.modules?.length || 0} module{(pkg.modules?.length || 0) !== 1 ? 's' : ''}
+                        </td>
+                      ))}
+                    </tr>
+                    {/* Action Row */}
+                    <tr>
+                      <td style={{ padding: '16px' }}></td>
+                      {availablePackages.map((pkg: Package) => {
+                        const packageId = typeof currentSubscription?.package === 'object' ? currentSubscription?.package?.id : currentSubscription?.package
+                        const isCurrentPlan = packageId === pkg.id
+                        return (
+                          <td key={pkg.id} style={{ padding: '16px', textAlign: 'center' }}>
+                            <Button
+                              variant={isCurrentPlan ? 'secondary' : 'primary'}
+                              disabled={isCurrentPlan}
+                              onClick={() => !isCurrentPlan && setSelectedPackageForPayment(pkg)}
+                              style={{ width: '100%', maxWidth: '200px' }}
+                            >
+                              {isCurrentPlan ? 'Current Plan' : 'Select Plan'}
+                            </Button>
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            ) : availablePackages.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: '#7f8c8d' }}>
+              <div style={{ fontSize: '48px', marginBottom: '16px' }}>📦</div>
+              <div style={{ fontSize: '16px', fontWeight: '500', marginBottom: '8px' }}>
+                No packages available
+              </div>
+              <div style={{ fontSize: '14px' }}>
+                Please contact support to set up subscription packages.
+              </div>
+            </div>
+          ) : (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: '24px'
+            }}>
+              {availablePackages.map((pkg: Package) => {
+                const monthlyPrice = typeof pkg.price_monthly === 'number' 
+                  ? pkg.price_monthly 
+                  : parseFloat(pkg.price_monthly?.toString() || '0')
+                const yearlyPrice = typeof pkg.price_yearly === 'number'
+                  ? pkg.price_yearly
+                  : parseFloat(pkg.price_yearly?.toString() || '0')
+                const savings = yearlyPrice > 0 ? (monthlyPrice * 12) - yearlyPrice : 0
+                const packageId = typeof currentSubscription?.package === 'object' ? currentSubscription?.package?.id : currentSubscription?.package
+                const isCurrentPlan = packageId === pkg.id
+                
+                return (
+                  <div
+                    key={pkg.id}
+                    style={{
+                      border: isCurrentPlan ? '2px solid #667eea' : '1px solid #e9ecef',
+                      borderRadius: '12px',
+                      padding: '24px',
+                      background: isCurrentPlan ? '#f8f9ff' : 'white',
+                      position: 'relative',
+                      transition: 'all 0.3s',
+                    }}
+                  >
+                    {isCurrentPlan && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '12px',
+                        right: '12px',
+                        padding: '4px 12px',
+                        borderRadius: '12px',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        background: '#667eea',
+                        color: 'white',
+                      }}>
+                        CURRENT PLAN
+                      </div>
+                    )}
+                    
+                    <div style={{ marginBottom: '16px' }}>
+                      <h3 style={{ 
+                        margin: '0 0 8px 0', 
+                        fontSize: '24px', 
+                        fontWeight: '700',
+                        color: '#2c3e50'
+                      }}>
+                        {pkg.name}
+                      </h3>
+                      {pkg.description && (
+                        <p style={{ 
+                          margin: 0, 
+                          fontSize: '14px', 
+                          color: '#7f8c8d',
+                          lineHeight: '1.5'
+                        }}>
+                          {pkg.description}
+                        </p>
+                      )}
+                    </div>
+
+                    <div style={{ marginBottom: '24px' }}>
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'baseline',
+                        marginBottom: '8px'
+                      }}>
+                        <span style={{ fontSize: '36px', fontWeight: '700', color: '#2c3e50' }}>
+                          {pkg.currency || 'USD'} {monthlyPrice.toFixed(2)}
+                        </span>
+                        <span style={{ fontSize: '14px', color: '#7f8c8d', marginLeft: '8px' }}>
+                          /month
+                        </span>
+                      </div>
+                      {yearlyPrice > 0 && (
+                        <div style={{ fontSize: '13px', color: '#7f8c8d' }}>
+                          <span>{pkg.currency || 'USD'} {yearlyPrice.toFixed(2)}/year</span>
+                          {savings > 0 && (
+                            <span style={{ 
+                              marginLeft: '8px', 
+                              color: '#28a745',
+                              fontWeight: '600'
+                            }}>
+                              Save {pkg.currency || 'USD'} {savings.toFixed(2)}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {(pkg.max_users || pkg.max_branches) && (
+                      <div style={{ 
+                        marginBottom: '24px',
+                        padding: '12px',
+                        background: '#f8f9fa',
+                        borderRadius: '8px',
+                        display: 'flex',
+                        gap: '16px',
+                        fontSize: '13px',
+                        color: '#2c3e50'
+                      }}>
+                        {pkg.max_users && (
+                          <div>
+                            <span style={{ fontWeight: '600' }}>Users:</span>{' '}
+                            {pkg.max_users === -1 ? 'Unlimited' : pkg.max_users}
+                          </div>
+                        )}
+                        {pkg.max_branches && (
+                          <div>
+                            <span style={{ fontWeight: '600' }}>Branches:</span>{' '}
+                            {pkg.max_branches === -1 ? 'Unlimited' : pkg.max_branches}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {pkg.modules && Array.isArray(pkg.modules) && pkg.modules.length > 0 && (
+                      <div style={{ marginBottom: '24px' }}>
+                        <div style={{ 
+                          fontSize: '12px', 
+                          color: '#6c757d', 
+                          marginBottom: '8px',
+                          fontWeight: '600',
+                          textTransform: 'uppercase'
+                        }}>
+                          Includes {pkg.modules.length} Module{pkg.modules.length !== 1 ? 's' : ''}
+                        </div>
+                        <div style={{
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          gap: '6px'
+                        }}>
+                          {pkg.modules.slice(0, 5).map((module: any) => (
+                            <span
+                              key={module.id || module}
+                              style={{
+                                padding: '4px 10px',
+                                borderRadius: '12px',
+                                fontSize: '11px',
+                                background: '#e3f2fd',
+                                color: '#1976d2',
+                                fontWeight: '500'
+                              }}
+                            >
+                              {module.name || module}
+                            </span>
+                          ))}
+                          {pkg.modules.length > 5 && (
+                            <span
+                              onClick={() => setSelectedPackageModules(pkg)}
+                              style={{
+                                padding: '4px 10px',
+                                borderRadius: '12px',
+                                fontSize: '11px',
+                                background: '#f5f5f5',
+                                color: '#6c757d',
+                                fontWeight: '500',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = '#e9ecef'
+                                e.currentTarget.style.color = '#495057'
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = '#f5f5f5'
+                                e.currentTarget.style.color = '#6c757d'
+                              }}
+                            >
+                              +{pkg.modules.length - 5} more (click to view)
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <Button
+                        variant={isCurrentPlan ? 'secondary' : 'primary'}
+                        style={{ width: '100%' }}
+                        disabled={isCurrentPlan}
+                        onClick={() => !isCurrentPlan && setSelectedPackageForPayment(pkg)}
+                      >
+                        {isCurrentPlan ? 'Current Plan' : 'Select Plan'}
+                      </Button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            )}
+          </Card>
+        </div>
+      )}
+
+      {/* Modules Modal */}
+      {selectedPackageModules && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '20px'
+        }} onClick={() => setSelectedPackageModules(null)}>
+          <div style={{
+            background: 'white',
+            borderRadius: '12px',
+            padding: '32px',
+            maxWidth: '600px',
+            width: '100%',
+            maxHeight: '80vh',
+            overflowY: 'auto'
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '700', color: '#2c3e50' }}>
+                {selectedPackageModules.name} - All Modules
+              </h2>
+              <button
+                onClick={() => setSelectedPackageModules(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  color: '#7f8c8d',
+                  padding: '0',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+              gap: '12px'
+            }}>
+              {selectedPackageModules.modules?.map((module: any) => (
+                <div
+                  key={module.id || module}
+                  style={{
+                    padding: '12px',
+                    background: '#f8f9fa',
+                    borderRadius: '8px',
+                    border: '1px solid #e9ecef'
+                  }}
+                >
+                  <div style={{ fontWeight: '600', fontSize: '14px', marginBottom: '4px', color: '#2c3e50' }}>
+                    {module.name || module}
+                  </div>
+                  {module.description && (
+                    <div style={{ fontSize: '12px', color: '#7f8c8d', marginTop: '4px' }}>
+                      {module.description}
+                    </div>
+                  )}
+                  {module.code && (
+                    <div style={{ fontSize: '11px', color: '#adb5bd', marginTop: '4px', fontFamily: 'monospace' }}>
+                      {module.code}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Modal */}
+      {selectedPackageForPayment && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '20px'
+        }} onClick={() => setSelectedPackageForPayment(null)}>
+          <div style={{
+            background: 'white',
+            borderRadius: '12px',
+            padding: '32px',
+            maxWidth: '600px',
+            width: '100%',
+            maxHeight: '90vh',
+            overflowY: 'auto'
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <div>
+                <h2 style={{ margin: '0 0 8px 0', fontSize: '24px', fontWeight: '700', color: '#2c3e50' }}>
+                  Upgrade to {selectedPackageForPayment.name}
+                </h2>
+                <p style={{ margin: 0, fontSize: '14px', color: '#7f8c8d' }}>
+                  {selectedPackageForPayment.description}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedPackageForPayment(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  color: '#7f8c8d',
+                  padding: '0',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Billing Cycle Selection */}
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ display: 'block', marginBottom: '12px', fontWeight: '600', fontSize: '14px', color: '#2c3e50' }}>
+                Billing Cycle
+              </label>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => setBillingCycle('monthly')}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: billingCycle === 'monthly' ? '2px solid #667eea' : '1px solid #e9ecef',
+                    background: billingCycle === 'monthly' ? '#f8f9ff' : 'white',
+                    color: billingCycle === 'monthly' ? '#667eea' : '#2c3e50',
+                    fontWeight: billingCycle === 'monthly' ? '600' : '400',
+                    cursor: 'pointer',
+                    fontSize: '14px'
+                  }}
+                >
+                  Monthly
+                  <div style={{ fontSize: '12px', fontWeight: '400', marginTop: '4px', opacity: 0.8 }}>
+                    {selectedPackageForPayment.currency || 'USD'} {typeof selectedPackageForPayment.price_monthly === 'number' 
+                      ? selectedPackageForPayment.price_monthly.toFixed(2) 
+                      : parseFloat(selectedPackageForPayment.price_monthly?.toString() || '0').toFixed(2)}/month
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBillingCycle('yearly')}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: billingCycle === 'yearly' ? '2px solid #667eea' : '1px solid #e9ecef',
+                    background: billingCycle === 'yearly' ? '#f8f9ff' : 'white',
+                    color: billingCycle === 'yearly' ? '#667eea' : '#2c3e50',
+                    fontWeight: billingCycle === 'yearly' ? '600' : '400',
+                    cursor: 'pointer',
+                    fontSize: '14px'
+                  }}
+                >
+                  Yearly
+                  <div style={{ fontSize: '12px', fontWeight: '400', marginTop: '4px', opacity: 0.8 }}>
+                    {selectedPackageForPayment.currency || 'USD'} {typeof selectedPackageForPayment.price_yearly === 'number'
+                      ? selectedPackageForPayment.price_yearly.toFixed(2)
+                      : parseFloat(selectedPackageForPayment.price_yearly?.toString() || '0').toFixed(2)}/year
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Payment Form */}
+            <PaymentForm
+              onSubmit={(paymentData) => {
+                if (currentSubscription?.id) {
+                  upgradeMutation.mutate({
+                    packageId: selectedPackageForPayment.id,
+                    paymentData,
+                    billingCycle
+                  })
+                } else {
+                  toast.error('No active subscription found')
+                }
+              }}
+              isLoading={upgradeMutation.isPending}
+              currency={selectedPackageForPayment.currency || 'USD'}
+              amount={billingCycle === 'monthly'
+                ? (typeof selectedPackageForPayment.price_monthly === 'number'
+                  ? selectedPackageForPayment.price_monthly
+                  : parseFloat(selectedPackageForPayment.price_monthly?.toString() || '0'))
+                : (typeof selectedPackageForPayment.price_yearly === 'number'
+                  ? selectedPackageForPayment.price_yearly
+                  : parseFloat(selectedPackageForPayment.price_yearly?.toString() || '0'))}
+              billingCycle={billingCycle}
+            />
+          </div>
         </div>
       )}
 

@@ -37,3 +37,5 @@ class GoodsReceivedNoteAdmin(admin.ModelAdmin):
     date_hierarchy = 'date'
 
 
+
+

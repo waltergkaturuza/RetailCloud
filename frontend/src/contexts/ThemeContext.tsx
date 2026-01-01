@@ -73,4 +73,30 @@ export function useTheme() {
   return context;
 }
 
+/**
+ * Utility hook to get theme-aware colors
+ * Returns light colors for dark mode and dark colors for light mode
+ */
+export function useThemeColors() {
+  const { effectiveTheme } = useTheme();
+  const isDark = effectiveTheme === 'dark';
+
+  return {
+    text: {
+      primary: isDark ? '#e0e0e0' : '#2c3e50',
+      secondary: isDark ? '#b0b0b0' : '#7f8c8d',
+      muted: isDark ? '#8a8a8a' : '#6c757d',
+    },
+    background: {
+      primary: isDark ? '#2a2a2a' : '#ffffff',
+      secondary: isDark ? '#1a1a1a' : '#f5f7fa',
+      card: isDark ? '#2a2a2a' : '#ffffff',
+    },
+    border: {
+      default: isDark ? '#3a3a3a' : '#ecf0f1',
+    },
+  };
+}
+
+
 

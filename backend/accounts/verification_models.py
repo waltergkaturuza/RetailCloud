@@ -66,3 +66,5 @@ class EmailVerificationToken(models.Model):
         
         return True
 
+
+

@@ -34,3 +34,5 @@ class CategoryReportTemplateAdmin(admin.ModelAdmin):
     search_fields = ['name', 'category__name']
 
 
+
+

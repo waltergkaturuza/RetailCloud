@@ -90,3 +90,5 @@ class TenantCurrency(models.Model):
         return f"{self.tenant.company_name} - {self.currency.code}"
 
 
+
+

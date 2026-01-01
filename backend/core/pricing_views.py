@@ -46,14 +46,23 @@ class PricingRuleViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def active(self, request):
         """Get the currently active pricing rule."""
-        pricing_rule = get_active_pricing_rule()
-        if not pricing_rule:
+        try:
+            pricing_rule = get_active_pricing_rule()
+            if not pricing_rule:
+                return Response(
+                    {'error': 'No active pricing rule found.'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            serializer = self.get_serializer(pricing_rule)
+            return Response(serializer.data)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error in active pricing rule endpoint: {str(e)}", exc_info=True)
             return Response(
-                {'error': 'No active pricing rule found.'},
-                status=status.HTTP_404_NOT_FOUND
+                {'error': 'An error occurred while fetching pricing rule.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        serializer = self.get_serializer(pricing_rule)
-        return Response(serializer.data)
     
     @action(detail=True, methods=['get'])
     def modules(self, request, pk=None):
@@ -93,4 +102,5 @@ class ModulePricingViewSet(viewsets.ModelViewSet):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
             return [IsAuthenticated(), IsSuperAdmin()]
         return [IsAuthenticated()]
+
 
