@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
-import Input from '../ui/Input'
 import toast from 'react-hot-toast'
 
 interface RFMScore {

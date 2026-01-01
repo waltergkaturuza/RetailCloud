@@ -3,8 +3,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
-import Input from '../ui/Input'
-import Select from '../ui/Select'
 import Modal from '../ui/Modal'
 import toast from 'react-hot-toast'
 
@@ -269,62 +267,68 @@ export default function CustomerSegmentation() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Recency Min</label>
-                  <Input
+                  <input
                     type="number"
                     min="1"
                     max="5"
                     value={formData.rfm_recency_min || ''}
                     onChange={(e) => setFormData({ ...formData, rfm_recency_min: parseInt(e.target.value) || undefined })}
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                   />
                 </div>
                 <div>
                   <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Recency Max</label>
-                  <Input
+                  <input
                     type="number"
                     min="1"
                     max="5"
                     value={formData.rfm_recency_max || ''}
                     onChange={(e) => setFormData({ ...formData, rfm_recency_max: parseInt(e.target.value) || undefined })}
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                   />
                 </div>
                 <div>
                   <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Frequency Min</label>
-                  <Input
+                  <input
                     type="number"
                     min="1"
                     max="5"
                     value={formData.rfm_frequency_min || ''}
                     onChange={(e) => setFormData({ ...formData, rfm_frequency_min: parseInt(e.target.value) || undefined })}
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                   />
                 </div>
                 <div>
                   <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Frequency Max</label>
-                  <Input
+                  <input
                     type="number"
                     min="1"
                     max="5"
                     value={formData.rfm_frequency_max || ''}
                     onChange={(e) => setFormData({ ...formData, rfm_frequency_max: parseInt(e.target.value) || undefined })}
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                   />
                 </div>
                 <div>
                   <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Monetary Min</label>
-                  <Input
+                  <input
                     type="number"
                     min="1"
                     max="5"
                     value={formData.rfm_monetary_min || ''}
                     onChange={(e) => setFormData({ ...formData, rfm_monetary_min: parseInt(e.target.value) || undefined })}
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                   />
                 </div>
                 <div>
                   <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Monetary Max</label>
-                  <Input
+                  <input
                     type="number"
                     min="1"
                     max="5"
                     value={formData.rfm_monetary_max || ''}
                     onChange={(e) => setFormData({ ...formData, rfm_monetary_max: parseInt(e.target.value) || undefined })}
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                   />
                 </div>
               </div>
