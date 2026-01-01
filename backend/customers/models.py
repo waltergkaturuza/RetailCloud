@@ -108,5 +108,17 @@ class CustomerTransaction(models.Model):
         return f"{self.customer.full_name} - {self.transaction_type}: {self.amount}"
 
 
-
+# Import advanced CRM models
+from .crm_models import (
+    CustomerSegment,
+    CustomerSegmentMembership,
+    CustomerRFMScore,
+    CustomerLifetimeValue,
+    CustomerTouchpoint,
+    CustomerJourneyStage,
+    LoyaltyTier,
+    CustomerLoyaltyTier,
+    LoyaltyReward,
+    LoyaltyRedemption,
+)
 
