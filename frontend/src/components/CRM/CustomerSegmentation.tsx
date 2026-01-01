@@ -238,27 +238,34 @@ export default function CustomerSegmentation() {
         title={selectedSegment ? 'Edit Segment' : 'Create Segment'}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Input
-            label="Segment Name"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            required
-          />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Segment Name
+            </label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              required
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+            />
+          </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Segment Type
             </label>
-            <Select
+            <select
               value={formData.segment_type}
               onChange={(e) => setFormData({ ...formData, segment_type: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
             >
               <option value="custom">Custom</option>
               <option value="rfm">RFM Analysis</option>
               <option value="behavioral">Behavioral</option>
               <option value="demographic">Demographic</option>
               <option value="value">Value-Based</option>
-            </Select>
+            </select>
           </div>
 
           {formData.segment_type === 'rfm' && (
