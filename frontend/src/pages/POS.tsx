@@ -6,6 +6,7 @@ import Receipt from '../components/Receipt'
 import CurrencySelector from '../components/CurrencySelector'
 import SplitPaymentModal from '../components/SplitPaymentModal'
 import PromotionModal from '../components/PromotionModal'
+import SerialCaptureModal from '../components/BulkInventory/SerialCaptureModal'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import toast from 'react-hot-toast'
@@ -18,6 +19,7 @@ interface CartItem {
   unit_price: number
   discount: number
   total: number
+  serial_numbers?: string[]  // For products requiring serial tracking
 }
 
 interface Product {
@@ -50,6 +52,7 @@ export default function POS() {
   const [appliedPromotion, setAppliedPromotion] = useState<any>(null)
   const [paymentSplits, setPaymentSplits] = useState<any[]>([])
   const [isOfflineMode, setIsOfflineMode] = useState(!navigator.onLine)
+  const [showSerialCapture, setShowSerialCapture] = useState<{product: Product, quantity: number} | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const queryClient = useQueryClient()
 
@@ -249,18 +252,33 @@ export default function POS() {
     }
   }, [])
 
-  // Add product to cart
-  const addToCart = useCallback((product: Product) => {
+  // Add product to cart (with serial capture if needed)
+  const addToCart = useCallback((product: Product, serialNumbers?: string[]) => {
     const existingItem = cart.find(item => item.product.id === product.id)
     const price = parseFloat(product.current_price || product.selling_price)
+    
+    // Check if product requires serial tracking (you can customize this check based on product attributes)
+    const requiresSerialTracking = product.requires_serial_tracking || product.track_serial_numbers || false
+    
+    if (requiresSerialTracking && !serialNumbers) {
+      // Show serial capture modal
+      setShowSerialCapture({ product, quantity: 1 })
+      return
+    }
 
     if (existingItem) {
+      // Merge serial numbers if provided
+      const mergedSerials = serialNumbers 
+        ? [...(existingItem.serial_numbers || []), ...serialNumbers]
+        : existingItem.serial_numbers
+      
       setCart(cart.map(item =>
         item.product.id === product.id
           ? {
               ...item,
               quantity: item.quantity + 1,
-              total: (item.quantity + 1) * item.unit_price - item.discount
+              total: (item.quantity + 1) * item.unit_price - item.discount,
+              serial_numbers: mergedSerials
             }
           : item
       ))
@@ -270,12 +288,21 @@ export default function POS() {
         quantity: 1,
         unit_price: price,
         discount: 0,
-        total: price
+        total: price,
+        serial_numbers: serialNumbers || []
       }])
     }
     setSearchQuery('')
     searchInputRef.current?.focus()
   }, [cart])
+  
+  // Handle serial capture completion
+  const handleSerialCapture = (serials: string[]) => {
+    if (showSerialCapture) {
+      addToCart(showSerialCapture.product, serials)
+      setShowSerialCapture(null)
+    }
+  }
 
   // Update cart item
   const updateCartItem = (index: number, updates: Partial<CartItem>) => {
@@ -431,7 +458,8 @@ export default function POS() {
         product_id: item.product.id,
         quantity: item.quantity,
         unit_price: item.unit_price,
-        discount_amount: item.discount || 0
+        discount_amount: item.discount || 0,
+        serial_numbers: item.serial_numbers || []  // Include serial numbers
       })),
       payment_method: paymentSplits.length > 0 ? 'split' : paymentMethod,
       currency: selectedCurrency,

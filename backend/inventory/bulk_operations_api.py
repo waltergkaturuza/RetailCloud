@@ -62,7 +62,7 @@ class BulkInventoryViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['post'])
     def extract_barcodes(self, request):
         """
-        Extract barcodes from text or image.
+        Extract barcodes from text or image using OCR.
         
         POST /api/inventory/bulk/extract_barcodes/
         Body: {
@@ -87,6 +87,70 @@ class BulkInventoryViewSet(viewsets.ViewSet):
         
         processor = BulkInventoryProcessor(tenant)
         result = processor.process_barcode_input(input_text, image_data)
+        
+        return Response(result)
+    
+    @action(detail=False, methods=['post'])
+    def process_image(self, request):
+        """
+        Process image for comprehensive extraction (text, barcodes, serials).
+        
+        POST /api/inventory/bulk/process_image/
+        Body: {
+            "image": <base64 or file>,
+            "product_id": 123,  # Optional, for pattern matching
+            "extract_text": true,
+            "extract_barcodes": true,
+            "extract_serials": true
+        }
+        """
+        from .ocr_service import OCRService
+        from .location_models import SerialNumberPattern
+        
+        tenant = self.get_tenant()
+        image_data = None
+        
+        # Handle image upload
+        if 'image' in request.FILES:
+            image_data = request.FILES['image'].read()
+        elif 'image' in request.data:
+            import base64
+            try:
+                image_data = base64.b64decode(request.data['image'])
+            except Exception:
+                return Response(
+                    {'error': 'Invalid image data'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            return Response(
+                {'error': 'image is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get patterns if product_id provided
+        patterns = None
+        product_id = request.data.get('product_id')
+        if product_id:
+            patterns = SerialNumberPattern.objects.filter(
+                tenant=tenant,
+                is_active=True
+            ).filter(
+                Q(product_id=product_id) | Q(product__isnull=True)
+            )
+        
+        # Process image
+        extract_text = request.data.get('extract_text', True)
+        extract_barcodes = request.data.get('extract_barcodes', True)
+        extract_serials = request.data.get('extract_serials', True)
+        
+        result = OCRService.process_image(
+            image_data,
+            extract_text=extract_text,
+            extract_barcodes=extract_barcodes,
+            extract_serials=extract_serials,
+            patterns=list(patterns) if patterns else None
+        )
         
         return Response(result)
     

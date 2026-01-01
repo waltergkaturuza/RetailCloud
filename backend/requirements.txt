@@ -7,6 +7,11 @@ python-dotenv==1.0.0
 gunicorn==21.2.0  # Production WSGI server
 whitenoise==6.6.0  # Static file serving for production
 Pillow>=10.2.0
+
+# OCR and Image Processing for Bulk Inventory
+opencv-python==4.8.1.78
+pytesseract==0.3.10
+pyzbar==0.1.9
 django-filter==23.5
 djangorestframework-simplejwt==5.3.1
 celery==5.3.4

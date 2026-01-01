@@ -232,24 +232,60 @@ class BarcodeExtractor:
     @staticmethod
     def extract_from_image(image_data: bytes) -> List[str]:
         """
-        Extract barcodes from image using OCR/barcode scanning.
-        Note: Requires additional libraries like pyzbar, opencv, pytesseract
-        
-        For now, returns empty list. Can be extended with actual image processing.
+        Extract barcodes and text from image using OCR/barcode scanning.
         """
-        # TODO: Implement image-based barcode extraction
-        # Requires: pip install pyzbar opencv-python pytesseract
-        # from pyzbar import pyzbar
-        # import cv2
-        # import numpy as np
-        # 
-        # # Decode image
-        # image = cv2.imdecode(np.frombuffer(image_data, np.uint8), cv2.IMREAD_COLOR)
-        # barcodes = pyzbar.decode(image)
-        # return [barcode.data.decode('utf-8') for barcode in barcodes]
+        barcodes = []
         
-        logger.warning("Image-based barcode extraction not yet implemented")
-        return []
+        try:
+            # Try barcode scanning first (fastest)
+            try:
+                from pyzbar import pyzbar
+                import cv2
+                import numpy as np
+                
+                # Decode image
+                nparr = np.frombuffer(image_data, np.uint8)
+                image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                
+                if image is not None:
+                    # Detect barcodes
+                    detected_barcodes = pyzbar.decode(image)
+                    for barcode in detected_barcodes:
+                        code = barcode.data.decode('utf-8')
+                        barcodes.append(code)
+                        logger.info(f"Detected barcode: {code}")
+            except ImportError:
+                logger.warning("pyzbar not available, skipping barcode detection")
+            except Exception as e:
+                logger.warning(f"Barcode detection failed: {e}")
+            
+            # Try OCR for text/serial extraction
+            try:
+                import pytesseract
+                from PIL import Image
+                import io
+                
+                # Convert bytes to PIL Image
+                image = Image.open(io.BytesIO(image_data))
+                
+                # Extract text using OCR
+                text = pytesseract.image_to_string(image)
+                
+                # Extract barcode-like patterns from OCR text
+                ocr_barcodes = BarcodeExtractor.extract_from_text(text)
+                barcodes.extend(ocr_barcodes)
+                
+                logger.info(f"OCR extracted {len(ocr_barcodes)} codes from image")
+            except ImportError:
+                logger.warning("pytesseract/PIL not available, skipping OCR")
+            except Exception as e:
+                logger.warning(f"OCR extraction failed: {e}")
+        
+        except Exception as e:
+            logger.error(f"Image processing error: {e}", exc_info=True)
+        
+        # Remove duplicates and return
+        return list(set(barcodes))
 
 
 class BulkInventoryProcessor:
