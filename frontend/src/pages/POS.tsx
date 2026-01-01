@@ -1287,6 +1287,17 @@ export default function POS() {
           }}
         />
       )}
+
+      {/* Serial Capture Modal */}
+      {showSerialCapture && (
+        <SerialCaptureModal
+          productId={showSerialCapture.product.id}
+          productName={showSerialCapture.product.name}
+          quantity={showSerialCapture.quantity}
+          onCapture={handleSerialCapture}
+          onClose={() => setShowSerialCapture(null)}
+        />
+      )}
     </div>
   )
 }
