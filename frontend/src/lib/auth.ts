@@ -72,6 +72,11 @@ export const authService = {
       throw new Error(`Invalid response from server: ${text.substring(0, 100)}`);
     }
 
+    // Check if response is empty
+    if (!text || Object.keys(responseData).length === 0) {
+      throw new Error('Server returned empty response. Please check backend logs and ensure VITE_API_URL is correctly configured.');
+    }
+
     // Handle 2FA required response
     if (response.ok && responseData.requires_2fa) {
       return {
@@ -95,6 +100,11 @@ export const authService = {
         }
       }
       throw new Error(errorMessage);
+    }
+
+    // Validate response structure
+    if (!responseData.tokens || !responseData.tokens.access || !responseData.tokens.refresh) {
+      throw new Error(`Invalid response structure. Expected tokens but got: ${JSON.stringify(responseData)}`);
     }
 
     const data = responseData as LoginResponse;

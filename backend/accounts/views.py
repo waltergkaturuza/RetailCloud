@@ -117,33 +117,56 @@ class AuthViewSet(viewsets.ViewSet):
             )
         
         if authenticated_user and authenticated_user.is_active:
-            authenticated_user.last_login = timezone.now()
-            authenticated_user.last_login_ip = ip_address
-            authenticated_user.save()
-            
-            # Create user session
             try:
-                session_key = request.session.session_key or request.session.create()
-                SecurityService.create_user_session(
-                    user=authenticated_user,
-                    session_key=session_key,
-                    ip_address=ip_address,
-                    user_agent=user_agent
-                )
+                authenticated_user.last_login = timezone.now()
+                authenticated_user.last_login_ip = ip_address
+                authenticated_user.save()
+                
+                # Create user session
+                try:
+                    session_key = request.session.session_key or request.session.create()
+                    SecurityService.create_user_session(
+                        user=authenticated_user,
+                        session_key=session_key,
+                        ip_address=ip_address,
+                        user_agent=user_agent
+                    )
+                except Exception as e:
+                    # Don't fail login if session creation fails
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(f"Failed to create user session: {str(e)}")
+                
+                # Generate JWT tokens
+                try:
+                    refresh = RefreshToken.for_user(authenticated_user)
+                    user_data = UserSerializer(authenticated_user).data
+                    
+                    return Response({
+                        'user': user_data,
+                        'tokens': {
+                            'refresh': str(refresh),
+                            'access': str(refresh.access_token),
+                        }
+                    })
+                except Exception as e:
+                    # Log the error and return a proper error response
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error(f"Failed to generate tokens for user {authenticated_user.email}: {str(e)}", exc_info=True)
+                    return Response(
+                        {'error': f'Failed to generate authentication tokens. Please contact support. Error: {str(e)}'},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
             except Exception as e:
-                # Don't fail login if session creation fails
+                # Catch any other unexpected errors
                 import logging
                 logger = logging.getLogger(__name__)
-                logger.warning(f"Failed to create user session: {str(e)}")
-            
-            refresh = RefreshToken.for_user(authenticated_user)
-            return Response({
-                'user': UserSerializer(authenticated_user).data,
-                'tokens': {
-                    'refresh': str(refresh),
-                    'access': str(refresh.access_token),
-                }
-            })
+                logger.error(f"Unexpected error during login for user {email}: {str(e)}", exc_info=True)
+                return Response(
+                    {'error': 'An unexpected error occurred during login. Please try again or contact support.'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
         
         return Response(
             {'error': 'Invalid credentials.'},
