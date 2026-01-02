@@ -5,6 +5,9 @@ from django.contrib import admin
 from .models import ExpenseCategory, Expense, TaxTransaction
 from .tax_config_models import TaxConfiguration, TaxPeriod, TaxLiability
 
+# Import double-entry models admin (premium feature)
+from . import admin_double_entry  # noqa
+
 
 @admin.register(ExpenseCategory)
 class ExpenseCategoryAdmin(admin.ModelAdmin):
