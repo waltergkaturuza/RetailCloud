@@ -381,17 +381,20 @@ export default function OwnerModuleActivations() {
                         {module.pricing_info ? (
                           <div>
                             <div style={{ fontWeight: '600', color: '#2c3e50' }}>
-                              {module.pricing_info.currency || 'USD'} {module.actual_price?.toFixed(2) || module.pricing_info.actual_price?.toFixed(2) || '0.00'}
+                              {module.pricing_info.currency || 'USD'} {(() => {
+                                const price = module.actual_price ?? module.pricing_info.actual_price;
+                                return price != null ? parseFloat(String(price)).toFixed(2) : '0.00';
+                              })()}
                             </div>
                             {module.activation_period_months === 12 && (
                               <div style={{ fontSize: '11px', color: '#28a745' }}>
-                                Save {module.pricing_info.discount_applied?.toFixed(0)}%
+                                Save {module.pricing_info.discount_applied != null ? parseFloat(String(module.pricing_info.discount_applied)).toFixed(0) : '0'}%
                               </div>
                             )}
                           </div>
-                        ) : module.actual_price ? (
+                        ) : module.actual_price != null ? (
                           <span style={{ fontWeight: '600' }}>
-                            {module.currency || 'USD'} {module.actual_price.toFixed(2)}
+                            {module.currency || 'USD'} {parseFloat(String(module.actual_price)).toFixed(2)}
                           </span>
                         ) : (
                           '-'
