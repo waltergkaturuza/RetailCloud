@@ -417,6 +417,10 @@ export function getAllowedNavItems(role: UserRole | undefined | null) {
     { path: '/users', label: 'Users', icon: '👤', allowed: permissions.canAccessUsers },
     { path: '/employees', label: 'Employees', icon: '👥', allowed: permissions.canAccessEmployees },
     { path: '/shifts', label: 'Shifts', icon: '⏰', allowed: permissions.canAccessEmployees },
+    { path: '/tax-management', label: 'Tax Management', icon: '🧾', allowed: permissions.canAccessReports },
+    { path: '/chart-of-accounts', label: 'Chart of Accounts', icon: '📊', allowed: permissions.canAccessReports },
+    { path: '/journal-entries', label: 'Journal Entries', icon: '📝', allowed: permissions.canAccessReports },
+    { path: '/accounting-reports', label: 'Accounting Reports', icon: '📈', allowed: permissions.canAccessReports },
     { path: '/settings', label: 'Settings', icon: '⚙️', allowed: permissions.canAccessSettings },
   ].filter(item => item.allowed)
 }

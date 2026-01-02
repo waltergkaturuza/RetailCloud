@@ -14,24 +14,24 @@ interface ChartAccount {
   id: number
   code: string
   name: string
-  description: string
+  description?: string
   account_type: string
-  account_type_display: string
-  parent: number | null
+  account_type_display?: string
+  parent?: number | null
   parent_code?: string
   parent_name?: string
   is_active: boolean
-  is_system_account: boolean
+  is_system_account?: boolean
   normal_balance: string
-  normal_balance_display: string
-  allow_manual_entries: boolean
-  requires_reconciliation: boolean
+  normal_balance_display?: string
+  allow_manual_entries?: boolean
+  requires_reconciliation?: boolean
   current_balance?: {
     net_balance: number
     debit_balance: number
     credit_balance: number
   }
-  sub_account_count: number
+  sub_account_count?: number
 }
 
 export default function ChartOfAccounts() {
@@ -146,16 +146,16 @@ export default function ChartOfAccounts() {
 
   const accountTypes = [
     { value: 'all', label: 'All Types' },
-    { value: 'asset_current', label: 'Current Assets' },
-    { value: 'asset_fixed', label: 'Fixed Assets' },
-    { value: 'asset_intangible', label: 'Intangible Assets' },
-    { value: 'liability_current', label: 'Current Liabilities' },
-    { value: 'liability_long_term', label: 'Long-Term Liabilities' },
+    { value: 'asset_current', label: 'Current Asset' },
+    { value: 'asset_fixed', label: 'Fixed Asset' },
+    { value: 'asset_intangible', label: 'Intangible Asset' },
+    { value: 'liability_current', label: 'Current Liability' },
+    { value: 'liability_long_term', label: 'Long-Term Liability' },
     { value: 'equity', label: 'Equity' },
     { value: 'equity_retained', label: 'Retained Earnings' },
     { value: 'revenue', label: 'Revenue' },
     { value: 'revenue_other', label: 'Other Income' },
-    { value: 'expense', label: 'Expenses' },
+    { value: 'expense', label: 'Expense' },
     { value: 'expense_cogs', label: 'Cost of Goods Sold' },
   ]
 

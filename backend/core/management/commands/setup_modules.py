@@ -26,6 +26,7 @@ class Command(BaseCommand):
             {'name': 'E-commerce Integration', 'code': 'ecommerce_integration', 'category': 'advanced', 'sort_order': 9},
             {'name': 'Mobile Manager App', 'code': 'mobile_app', 'category': 'advanced', 'sort_order': 10},
             {'name': 'Accounting Integration', 'code': 'accounting_integration', 'category': 'advanced', 'sort_order': 11},
+            {'name': 'Double-Entry Accounting', 'code': 'accounting', 'category': 'advanced', 'sort_order': 11.5},
             {'name': 'QR/Barcode Automation', 'code': 'barcode_automation', 'category': 'advanced', 'sort_order': 12},
             {'name': 'Offline POS', 'code': 'offline_pos', 'category': 'advanced', 'sort_order': 13},
             {'name': 'Smart Security Features', 'code': 'security_features', 'category': 'advanced', 'sort_order': 14},
