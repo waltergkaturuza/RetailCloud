@@ -70,9 +70,11 @@ export default function Layout() {
         padding: '0',
         transition: 'width 0.3s ease',
         position: 'relative',
-        overflow: 'hidden',
+        overflowY: 'auto',
+        overflowX: 'hidden',
         display: 'flex',
-        flexDirection: 'column'
+        flexDirection: 'column',
+        height: '100vh'
       }}>
         {/* Toggle Button */}
         <button
@@ -122,7 +124,7 @@ export default function Layout() {
           )}
         </div>
         
-        <nav style={{ padding: '10px 0', flex: 1, overflowY: 'auto' }}>
+        <nav style={{ padding: '10px 0', flex: 1, overflowY: 'auto', minHeight: 0 }}>
           {navItems.map((item) => {
             const isActive = location.pathname === item.path
             return (
@@ -158,10 +160,8 @@ export default function Layout() {
           padding: '20px', 
           marginTop: 'auto', 
           borderTop: '1px solid #34495e',
-          position: 'absolute',
-          bottom: 0,
-          width: isCollapsed ? '70px' : '250px',
-          transition: 'width 0.3s ease'
+          width: '100%',
+          flexShrink: 0
         }}>
           <button
             onClick={toggleTheme}
