@@ -55,6 +55,7 @@ import GlobalSearch from './components/GlobalSearch'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { Toaster } from 'react-hot-toast'
 import { registerServiceWorker, registerNetworkListener } from './lib/offline'
+import { initIdleTimeout, clearIdleTimeout } from './utils/idleTimeout'
 import { useEffect } from 'react'
 import './styles/dark-mode.css'
 import './styles/light-mode.css'
@@ -82,6 +83,14 @@ function App() {
         console.log('Offline mode activated')
       }
     })
+    
+    // Initialize idle timeout (30 minutes)
+    initIdleTimeout()
+    
+    // Cleanup on unmount
+    return () => {
+      clearIdleTimeout()
+    }
   }, [])
 
   return (

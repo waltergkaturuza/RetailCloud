@@ -90,6 +90,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = () => {
     authService.logout();
     setUser(null);
+    // Clear idle timeout on logout
+    import('../utils/idleTimeout').then(({ clearIdleTimeout }) => {
+      clearIdleTimeout();
+    });
   };
 
   return (
