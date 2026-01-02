@@ -49,7 +49,11 @@ export const authService = {
       body.backup_code = backupCode;
     }
     
-    const response = await fetch('/api/auth/auth/login/', {
+    // Use API base URL from environment, fallback to relative path
+    const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+    const loginUrl = `${API_BASE_URL}/auth/auth/login/`;
+    
+    const response = await fetch(loginUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
