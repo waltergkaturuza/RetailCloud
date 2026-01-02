@@ -55,7 +55,18 @@ export const authService = {
       body: JSON.stringify(body),
     });
 
-    const responseData = await response.json();
+    // Check if response has content before parsing
+    const text = await response.text();
+    let responseData;
+    try {
+      responseData = text ? JSON.parse(text) : {};
+    } catch (e) {
+      // If response is not JSON, check if it's HTML (error page)
+      if (text.trim().startsWith('<')) {
+        throw new Error('Server error: Received HTML instead of JSON. Please check backend logs.');
+      }
+      throw new Error(`Invalid response from server: ${text.substring(0, 100)}`);
+    }
 
     // Handle 2FA required response
     if (response.ok && responseData.requires_2fa) {
