@@ -12,6 +12,7 @@ import Card from '../components/ui/Card'
 import toast from 'react-hot-toast'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { saveOfflineSale, syncOfflineSales, getUnsyncedSales } from '../lib/offline'
+import { isMobile, isTablet, getProductGridColumns } from '../utils/responsive'
 
 interface CartItem {
   product: any
@@ -55,6 +56,18 @@ export default function POS() {
   const [showSerialCapture, setShowSerialCapture] = useState<{product: Product, quantity: number} | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const queryClient = useQueryClient()
+  
+  // Responsive state
+  const [screenWidth, setScreenWidth] = useState(() => typeof window !== 'undefined' ? window.innerWidth : 1024)
+  
+  useEffect(() => {
+    const handleResize = () => setScreenWidth(window.innerWidth)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+  
+  const mobile = isMobile(screenWidth)
+  const tablet = isTablet(screenWidth)
 
   // Monitor online/offline status
   useEffect(() => {
@@ -492,13 +505,22 @@ export default function POS() {
   return (
     <div style={{ 
       display: 'flex', 
-      gap: '20px', 
-      height: 'calc(100vh - 60px)',
-      padding: '0',
-      background: '#f5f7fa'
+      flexDirection: mobile ? 'column' : 'row',
+      gap: mobile ? '12px' : tablet ? '16px' : '20px', 
+      height: mobile ? 'auto' : 'calc(100vh - 60px)',
+      padding: mobile ? '12px' : '0',
+      background: '#f5f7fa',
+      minHeight: mobile ? '100vh' : 'auto'
     }}>
       {/* Left Panel - Product Search & Selection (60%) */}
-      <div style={{ flex: '0 0 60%', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div style={{ 
+        flex: mobile ? 'none' : '0 0 60%', 
+        width: mobile ? '100%' : 'auto',
+        display: 'flex', 
+        flexDirection: 'column', 
+        gap: mobile ? '12px' : '16px',
+        order: mobile ? 2 : 1
+      }}>
         {/* Search Bar */}
         <Card style={{ padding: '20px', margin: 0 }}>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
@@ -669,8 +691,8 @@ export default function POS() {
             flex: 1, 
             overflowY: 'auto',
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-            gap: '12px',
+            gridTemplateColumns: getProductGridColumns(screenWidth),
+            gap: mobile ? '8px' : '12px',
             paddingRight: '8px'
           }}>
             {quickProducts.map((product: Product) => (
@@ -726,7 +748,21 @@ export default function POS() {
       </div>
 
       {/* Right Panel - Cart & Checkout (40%) */}
-      <div style={{ flex: '0 0 40%', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div style={{ 
+        flex: mobile ? 'none' : '0 0 40%', 
+        width: mobile ? '100%' : 'auto',
+        display: 'flex', 
+        flexDirection: 'column', 
+        gap: mobile ? '12px' : '16px',
+        order: mobile ? 1 : 2,
+        position: mobile ? 'sticky' : 'relative',
+        top: mobile ? '0' : 'auto',
+        zIndex: mobile ? 10 : 'auto',
+        background: mobile ? 'white' : 'transparent',
+        padding: mobile ? '12px' : '0',
+        borderRadius: mobile ? '12px' : '0',
+        boxShadow: mobile ? '0 2px 8px rgba(0,0,0,0.1)' : 'none'
+      }}>
         <Card style={{ flex: 1, padding: '20px', margin: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <h3 style={{ margin: 0, fontSize: '22px', color: '#2c3e50', fontWeight: '600' }}>
@@ -807,7 +843,12 @@ export default function POS() {
                       </button>
                     </div>
                     
-                    <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr 120px', gap: '10px', alignItems: 'center' }}>
+                    <div style={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: mobile ? '1fr' : '80px 1fr 120px', 
+                      gap: mobile ? '8px' : '10px', 
+                      alignItems: 'center' 
+                    }}>
                       <input
                         type="number"
                         min="1"
@@ -1095,21 +1136,27 @@ export default function POS() {
                     </button>
                   </div>
                 ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: mobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', 
+                    gap: mobile ? '8px' : '8px' 
+                  }}>
                     {['cash', 'ecocash', 'card', 'onemoney', 'zipit', 'credit'].map((method) => (
                       <button
                         key={method}
                         onClick={() => setPaymentMethod(method)}
                         style={{
-                          padding: '12px',
+                          padding: mobile ? '14px' : '12px',
+                          minHeight: mobile ? '44px' : 'auto',
                           border: `2px solid ${paymentMethod === method ? '#3498db' : '#ddd'}`,
                           borderRadius: '8px',
                           background: paymentMethod === method ? '#ebf5fb' : 'white',
                           cursor: 'pointer',
-                          fontSize: '13px',
+                          fontSize: mobile ? '14px' : '13px',
                           fontWeight: paymentMethod === method ? '600' : '400',
                           textTransform: 'capitalize',
-                          transition: 'all 0.2s'
+                          transition: 'all 0.2s',
+                          touchAction: 'manipulation'
                         }}
                       >
                         {method === 'ecocash' ? 'EcoCash' : method === 'onemoney' ? 'OneMoney' : method}
@@ -1207,20 +1254,22 @@ export default function POS() {
                 isLoading={saleMutation.isPending}
                 style={{
                   width: '100%',
-                  padding: '18px',
-                  fontSize: '20px',
+                  padding: mobile ? '16px' : '18px',
+                  minHeight: mobile ? '52px' : 'auto',
+                  fontSize: mobile ? '18px' : '20px',
                   fontWeight: '700',
                   borderRadius: '10px',
                   background: cart.length === 0 || (paymentMethod === 'cash' && parseFloat(amountPaid || '0') < total)
                     ? '#bdc3c7'
-                    : '#2ecc71'
+                    : '#2ecc71',
+                  touchAction: 'manipulation'
                 }}
               >
                 {saleMutation.isPending 
                   ? 'Processing...' 
                   : paymentMethod === 'cash'
-                    ? `Complete Sale - Change: $${change.toFixed(2)}`
-                    : `Complete Sale - $${total.toFixed(2)}`}
+                    ? (mobile ? `Complete - $${change.toFixed(2)}` : `Complete Sale - Change: $${change.toFixed(2)}`)
+                    : (mobile ? `Complete - $${total.toFixed(2)}` : `Complete Sale - $${total.toFixed(2)}`)}
               </Button>
             </>
           )}

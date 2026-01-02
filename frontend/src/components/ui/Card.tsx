@@ -5,11 +5,12 @@ interface CardProps {
   className?: string;
   title?: string;
   actions?: React.ReactNode;
+  style?: React.CSSProperties;
 }
 
-export default function Card({ children, className = '', title, actions }: CardProps) {
+export default function Card({ children, className = '', title, actions, style }: CardProps) {
   return (
-    <div className={`card ${className}`}>
+    <div className={`card ${className}`} style={style}>
       {(title || actions) && (
         <div style={{ 
           display: 'flex', 
