@@ -4,7 +4,7 @@ Serializers for Owner/Super Admin functionality.
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import Tenant, Branch, Module, Package
-from .business_category_models import BusinessCategory
+from .business_category_models import BusinessCategory, CategoryModuleMapping
 from .owner_models import (
     SystemSettings, OwnerAuditLog, SystemHealthMetric,
     SystemAnnouncement, TenantBackup
@@ -421,6 +421,35 @@ class OwnerUserSerializer(serializers.ModelSerializer):
         if obj.last_login:
             return obj.last_login.strftime('%Y-%m-%d %H:%M:%S')
         return 'Never'
+
+
+class OwnerBusinessCategorySerializer(serializers.ModelSerializer):
+    """Serializer for business category management by owner."""
+    module_count = serializers.SerializerMethodField()
+    recommended_modules = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = BusinessCategory
+        fields = [
+            'id', 'code', 'name', 'description', 'icon',
+            'requires_expiry_tracking', 'requires_serial_tracking',
+            'requires_weight_scale', 'requires_variants',
+            'requires_warranty', 'requires_appointments',
+            'requires_recipe_costing', 'requires_layby',
+            'requires_delivery', 'is_active', 'sort_order',
+            'module_count', 'recommended_modules',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_module_count(self, obj):
+        return obj.module_mappings.count()
+    
+    def get_recommended_modules(self, obj):
+        """Get recommended modules for this category."""
+        from .business_category_serializers import ModuleSimpleSerializer, CategoryModuleMappingSerializer
+        mappings = obj.module_mappings.all().order_by('-priority')
+        return CategoryModuleMappingSerializer(mappings, many=True).data
 
 
 class TenantSummarySerializer(serializers.ModelSerializer):

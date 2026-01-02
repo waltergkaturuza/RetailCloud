@@ -38,6 +38,7 @@ import OwnerTenants from './pages/owner/Tenants'
 import OwnerModuleActivations from './pages/owner/ModuleActivations'
 import OwnerSubscriptions from './pages/owner/Subscriptions'
 import SystemSettings from './pages/owner/SystemSettings'
+import BusinessCategories from './pages/owner/BusinessCategories'
 import AuditLogs from './pages/owner/AuditLogs'
 import SystemHealth from './pages/owner/SystemHealth'
 import Announcements from './pages/owner/Announcements'
@@ -229,6 +230,7 @@ function App() {
                   <Route path="module-activations" element={<OwnerModuleActivations />} />
                   <Route path="subscriptions" element={<OwnerSubscriptions />} />
                   <Route path="settings" element={<SystemSettings />} />
+                  <Route path="business-categories" element={<BusinessCategories />} />
                   <Route path="users" element={<OwnerUsers />} />
                   <Route path="audit-logs" element={<AuditLogs />} />
                   <Route path="health" element={<SystemHealth />} />

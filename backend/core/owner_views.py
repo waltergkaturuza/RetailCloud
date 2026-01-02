@@ -23,9 +23,11 @@ from .owner_serializers import (
     SystemSettingsSerializer, OwnerAuditLogSerializer,
     SystemHealthMetricSerializer, SystemAnnouncementSerializer,
     TenantBackupSerializer, OwnerDashboardStatsSerializer, TenantSummarySerializer,
-    TenantDetailSerializer, TenantCreateUpdateSerializer, OwnerUserSerializer
+    TenantDetailSerializer, TenantCreateUpdateSerializer, OwnerUserSerializer,
+    OwnerBusinessCategorySerializer
 )
 from .models import Tenant
+from .business_category_models import BusinessCategory, CategoryModuleMapping
 from accounts.models import User
 from subscriptions.models import Subscription
 from pos.models import Sale
@@ -1519,3 +1521,46 @@ class AnalyticsView(views.APIView):
         self._create_backup_file(backup)
         
         return Response(TenantBackupSerializer(backup).data, status=status.HTTP_201_CREATED)
+
+
+class OwnerBusinessCategoryViewSet(viewsets.ModelViewSet):
+    """Manage business categories (system-level industry types)."""
+    queryset = BusinessCategory.objects.all().order_by('sort_order', 'name')
+    serializer_class = OwnerBusinessCategorySerializer
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
+    lookup_field = 'id'
+    
+    def perform_create(self, serializer):
+        """Create category with audit log."""
+        instance = serializer.save()
+        log_audit(
+            self.request.user,
+            'category_created',
+            f"Created business category: {instance.name}",
+            metadata={'category_id': instance.id, 'code': instance.code, 'name': instance.name},
+            request=self.request
+        )
+    
+    def perform_update(self, serializer):
+        """Update category with audit log."""
+        instance = serializer.save()
+        log_audit(
+            self.request.user,
+            'category_updated',
+            f"Updated business category: {instance.name}",
+            metadata={'category_id': instance.id, 'code': instance.code, 'name': instance.name},
+            request=self.request
+        )
+    
+    def perform_destroy(self, instance):
+        """Soft delete category (set is_active=False) with audit log."""
+        # Soft delete instead of hard delete to preserve data integrity
+        instance.is_active = False
+        instance.save()
+        log_audit(
+            self.request.user,
+            'category_deleted',
+            f"Deactivated business category: {instance.name}",
+            metadata={'category_id': instance.id, 'code': instance.code, 'name': instance.name},
+            request=self.request
+        )

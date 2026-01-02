@@ -62,6 +62,7 @@ export default function OwnerLayout() {
     { path: '/owner/module-activations', label: 'Module Activations', icon: '📦' },
     { path: '/owner/subscriptions', label: 'Subscriptions', icon: '💳' },
     { path: '/owner/settings', label: 'System Settings', icon: '⚙️' },
+    { path: '/owner/business-categories', label: 'Business Categories', icon: '📂' },
     { path: '/owner/users', label: 'Users', icon: '👥' },
     { path: '/owner/audit-logs', label: 'Audit Logs', icon: '📋' },
     { path: '/owner/health', label: 'System Health', icon: '💚' },

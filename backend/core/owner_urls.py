@@ -13,6 +13,7 @@ from .owner_views import (
     SystemAnnouncementViewSet,
     TenantBackupViewSet,
     AnalyticsView,
+    OwnerBusinessCategoryViewSet,
 )
 
 router = DefaultRouter()
@@ -23,6 +24,7 @@ router.register(r'audit-logs', OwnerAuditLogViewSet, basename='owner-audit-logs'
 router.register(r'health', SystemHealthViewSet, basename='system-health')
 router.register(r'announcements', SystemAnnouncementViewSet, basename='system-announcements')
 router.register(r'backups', TenantBackupViewSet, basename='tenant-backups')
+router.register(r'business-categories', OwnerBusinessCategoryViewSet, basename='owner-business-categories')
 
 urlpatterns = [
     path('dashboard/', OwnerDashboardView.as_view(), name='owner-dashboard'),
