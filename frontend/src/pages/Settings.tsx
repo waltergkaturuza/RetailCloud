@@ -60,7 +60,7 @@ export default function Settings() {
         return { recommended: [], category: null }
       }
     },
-    enabled: !!currentCategory, // Only fetch if category is selected
+    enabled: true, // Always fetch modules (will return all if no category)
   })
 
   const enabledModules = Array.isArray(modulesData) ? modulesData : []
@@ -267,28 +267,30 @@ export default function Settings() {
             )}
           </Card>
 
-          {/* Recommended Modules */}
-          {currentCategory && (
-            <Card title="Recommended Modules">
-              <p style={{ marginBottom: '16px', color: '#7f8c8d', fontSize: '14px' }}>
-                These modules are recommended for your business category. Select modules to request activation.
-              </p>
-              {recommendedModules.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px', color: '#7f8c8d' }}>
-                  No recommended modules available for this category.
-                </div>
-              ) : (
-                <ModuleActivationList 
-                  recommendedModules={recommendedModules}
-                  enabledModules={enabledModules}
-                  onActivationRequest={() => {
-                    queryClient.invalidateQueries({ queryKey: ['tenant-modules'] })
-                    queryClient.invalidateQueries({ queryKey: ['recommended-modules'] })
-                  }}
-                />
-              )}
-            </Card>
-          )}
+          {/* Available Modules */}
+          <Card title={currentCategory ? "Available Modules" : "Available Modules"}>
+            <p style={{ marginBottom: '16px', color: '#7f8c8d', fontSize: '14px' }}>
+              {currentCategory 
+                ? "Browse all available modules. Recommended modules for your business category are highlighted."
+                : "Browse all available modules. Select a business category to see recommended modules."}
+            </p>
+            {recommendedModules.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#7f8c8d' }}>
+                {currentCategory 
+                  ? "No modules available at this time."
+                  : "Select a business category first, or browse all modules below."}
+              </div>
+            ) : (
+              <ModuleActivationList 
+                recommendedModules={recommendedModules}
+                enabledModules={enabledModules}
+                onActivationRequest={() => {
+                  queryClient.invalidateQueries({ queryKey: ['tenant-modules'] })
+                  queryClient.invalidateQueries({ queryKey: ['recommended-modules'] })
+                }}
+              />
+            )}
+          </Card>
         </div>
       )}
 

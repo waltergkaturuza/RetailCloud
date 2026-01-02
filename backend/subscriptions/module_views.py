@@ -50,71 +50,50 @@ class TenantModuleViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'])
     def recommended(self, request):
-        """Get recommended modules based on tenant's business category."""
+        """Get recommended modules based on tenant's business category, or all modules if no category."""
         try:
             tenant = self._get_tenant(request)
-            if not tenant or not tenant.business_category:
-                return Response({
-                    'recommended': [],
-                    'category': None,
-                    'message': 'No business category selected'
-                })
-            
-            from core.category_services import get_category_recommendations
-            recommendations = get_category_recommendations(category_id=tenant.business_category.id)
-            
-            if not recommendations:
-                return Response({
-                    'recommended': [],
-                    'category': None,
-                    'message': 'No recommendations available for this category'
-                })
+            from .serializers import ModuleSerializer
             
             # Check which modules are already requested/activated
             existing_modules = TenantModule.objects.filter(
                 tenant=tenant
-            ).values_list('module__code', flat=True)
+            ).values_list('module__code', flat=True) if tenant else []
             
-            # Get module IDs for codes
-            recommended_modules = recommendations.get('recommended_modules', [])
-            if not recommended_modules:
-                return Response({
-                    'recommended': [],
-                    'category': recommendations.get('category'),
-                    'message': 'No modules configured for this category'
-                })
+            # Get all active modules
+            all_modules = Module.objects.filter(is_active=True).order_by('sort_order', 'name')
+            all_modules_data = []
+            recommended_module_codes = set()
             
-            module_codes = [mod['code'] for mod in recommended_modules]
-            module_objects = Module.objects.filter(code__in=module_codes)
-            module_map = {mod.code: mod for mod in module_objects}
+            # If tenant has a business category, get recommended modules for that category
+            if tenant and tenant.business_category:
+                from core.category_services import get_category_recommendations
+                recommendations = get_category_recommendations(category_id=tenant.business_category.id)
+                recommended_modules = recommendations.get('recommended_modules', [])
+                recommended_module_codes = {mod['code'] for mod in recommended_modules}
+                category_info = recommendations.get('category')
+            else:
+                category_info = None
             
-            # Import serializer to get full module details
-            from .serializers import ModuleSerializer
-            
-            recommended = []
-            for mod in recommended_modules:
-                is_requested = mod['code'] in existing_modules
-                module_obj = module_map.get(mod['code'])
-                
-                # Get full module details if available
-                module_data = mod.copy()  # Start with basic data
-                if module_obj:
-                    module_serializer = ModuleSerializer(module_obj)
-                    module_data.update(module_serializer.data)
-                    module_data['module_id'] = module_obj.id
-                else:
-                    module_data['module_id'] = None
-                
+            # Build module list with all modules, marking which are recommended
+            for module in all_modules:
+                is_requested = module.code in existing_modules
+                module_serializer = ModuleSerializer(module)
+                module_data = module_serializer.data.copy()
                 module_data.update({
+                    'module_id': module.id,
+                    'module_code': module.code,
+                    'module_name': module.name,
                     'is_requested': is_requested,
-                    'can_request': not is_requested
+                    'can_request': not is_requested,
+                    'is_recommended': module.code in recommended_module_codes,
                 })
-                
-                recommended.append(module_data)
+                all_modules_data.append(module_data)
             
             return Response({
-                'recommended': recommended,
-                'category': recommendations.get('category')
+                'recommended': all_modules_data,
+                'category': category_info,
+                'show_all': not (tenant and tenant.business_category) or len(recommended_module_codes) == 0
             })
         except Exception as e:
             import logging
