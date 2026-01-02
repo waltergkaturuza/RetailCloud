@@ -410,10 +410,11 @@ export default function OwnerModuleActivations() {
                         {module.activated_by_name || '-'}
                       </td>
                       <td style={{ padding: '12px', textAlign: 'right' }}>
-                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
                           {module.status === 'pending' && (
                             <Button
                               size="small"
+                              variant="success"
                               onClick={() => handleApprove(module)}
                               disabled={approveMutation.isPending}
                             >
@@ -421,9 +422,30 @@ export default function OwnerModuleActivations() {
                             </Button>
                           )}
                           {module.status === 'requires_payment' && (
-                            <span style={{ fontSize: '12px', color: '#dc3545' }}>
-                              Payment Required
-                            </span>
+                            <>
+                              <Button
+                                size="small"
+                                variant="success"
+                                onClick={() => handleApprove(module)}
+                                disabled={approveMutation.isPending}
+                              >
+                                ✓ Approve
+                              </Button>
+                              <span style={{ fontSize: '12px', color: '#dc3545' }}>
+                                Payment Required
+                              </span>
+                            </>
+                          )}
+                          {module.status === 'active' && !module.activated_by_name && (
+                            <Button
+                              size="small"
+                              variant="success"
+                              onClick={() => handleApprove(module)}
+                              disabled={approveMutation.isPending}
+                              title="Record owner approval for this module"
+                            >
+                              ✓ Record Approval
+                            </Button>
                           )}
                         </div>
                       </td>
