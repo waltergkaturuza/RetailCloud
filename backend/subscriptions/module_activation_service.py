@@ -81,10 +81,12 @@ def request_module_activation(tenant, module, requested_by=None, period_months=1
         can_act, reason, req_payment, req_approval = can_activate_module(tenant, module)
         
         # If it's pending but can now activate, update status
+        # BUT don't set activated_by - that should only be set when owner approves
         if existing.status == 'pending' and can_act:
             existing.status = 'trial' if reason == 'trial_active' else 'active'
             existing.enabled_at = timezone.now()
-            existing.activated_by = requested_by
+            # Don't set activated_by here - only set when owner explicitly approves
+            # existing.activated_by = requested_by
             existing.save()
             return {
                 'success': True,
@@ -108,10 +110,12 @@ def request_module_activation(tenant, module, requested_by=None, period_months=1
     can_act, reason, req_payment, req_approval = can_activate_module(tenant, module)
     
     # Determine initial status
+    # Even if can_activate, require owner approval for tracking purposes
+    # Only set activated_by when owner explicitly approves
     if can_act and not req_approval:
         status = 'trial' if reason == 'trial_active' else 'active'
         enabled_at = timezone.now()
-        activated_by = requested_by
+        activated_by = None  # Don't set until owner approves
     else:
         status = 'requires_payment' if req_payment else 'pending'
         enabled_at = None
