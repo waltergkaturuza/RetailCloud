@@ -142,7 +142,12 @@ class Command(BaseCommand):
                 package.modules.set(modules)
                 self.stdout.write(self.style.SUCCESS(f'Created package: {package.name}'))
             else:
-                self.stdout.write(f'Package already exists: {package.name}')
+                # Update existing package with new data and modules
+                for key, value in package_data.items():
+                    setattr(package, key, value)
+                package.save()
+                package.modules.set(modules)
+                self.stdout.write(self.style.SUCCESS(f'Updated package: {package.name}'))
         
         self.stdout.write(self.style.SUCCESS('\nSetup completed!'))
 
