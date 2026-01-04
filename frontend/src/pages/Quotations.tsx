@@ -350,6 +350,14 @@ export default function Quotations() {
                       </td>
                       <td style={{ padding: '12px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                          <Button
+                            size="small"
+                            variant="secondary"
+                            onClick={() => window.open(`/api/quotes/quotations/${quotation.id}/pdf/`, '_blank')}
+                            title="Download PDF"
+                          >
+                            📄 PDF
+                          </Button>
                           {quotation.status === 'accepted' && !quotation.invoice && (
                             <Button
                               size="small"

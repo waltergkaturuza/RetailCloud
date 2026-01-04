@@ -344,6 +344,14 @@ export default function Invoices() {
                       </td>
                       <td style={{ padding: '12px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                          <Button
+                            size="small"
+                            variant="secondary"
+                            onClick={() => window.open(`/api/quotes/invoices/${invoice.id}/pdf/`, '_blank')}
+                            title="Download PDF"
+                          >
+                            📄 PDF
+                          </Button>
                           {invoice.balance_due > 0 && (
                             <Button
                               size="small"
