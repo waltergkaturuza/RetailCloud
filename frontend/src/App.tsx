@@ -253,6 +253,11 @@ function App() {
                       <Invoices />
                     </RoleProtectedRoute>
                   } />
+                  <Route path="ai-chatbot" element={
+                    <RoleProtectedRoute requiredPermission="canAccessDashboard">
+                      <AIChatbot />
+                    </RoleProtectedRoute>
+                  } />
                 </Route>
                 
                 {/* Owner Routes */}
