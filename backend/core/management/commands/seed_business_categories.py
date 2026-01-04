@@ -202,6 +202,14 @@ class Command(BaseCommand):
                 'modules': ['ecommerce_integration', 'inventory', 'multi_branch'],
             },
             {
+                'code': 'professional_services',
+                'name': 'Professional Services / Consulting',
+                'description': 'Consulting firms, professional services, B2B service providers, supply of goods and services',
+                'icon': '💼',
+                'features': {},
+                'modules': ['quotations_invoicing', 'sales_customers', 'financial_reporting', 'accounting', 'multi_branch'],
+            },
+            {
                 'code': 'other',
                 'name': 'Others (Custom Category)',
                 'description': 'Custom business category for niche businesses',

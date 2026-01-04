@@ -27,6 +27,7 @@ class Command(BaseCommand):
             {'name': 'Mobile Manager App', 'code': 'mobile_app', 'category': 'advanced', 'sort_order': 10},
             {'name': 'Accounting Integration', 'code': 'accounting_integration', 'category': 'advanced', 'sort_order': 11},
             {'name': 'Double-Entry Accounting', 'code': 'accounting', 'category': 'advanced', 'sort_order': 11.5},
+            {'name': 'Quotations & Invoicing', 'code': 'quotations_invoicing', 'category': 'advanced', 'sort_order': 11.7},
             {'name': 'QR/Barcode Automation', 'code': 'barcode_automation', 'category': 'advanced', 'sort_order': 12},
             {'name': 'Offline POS', 'code': 'offline_pos', 'category': 'advanced', 'sort_order': 13},
             {'name': 'Smart Security Features', 'code': 'security_features', 'category': 'advanced', 'sort_order': 14},
@@ -113,6 +114,20 @@ class Command(BaseCommand):
                 'max_users': -1,  # Unlimited
                 'max_branches': -1,  # Unlimited
                 'sort_order': 4
+            },
+            {
+                'name': 'Professional Services Pack',
+                'code': 'professional_services',
+                'description': 'Perfect for consulting firms, professional services, and B2B service providers. Includes quotations, invoicing, and client management.',
+                'price_monthly': 35,
+                'price_yearly': 350,
+                'modules': Module.objects.filter(code__in=[
+                    'quotations_invoicing', 'sales_customers', 'financial_reporting',
+                    'accounting', 'multi_branch', 'roles_permissions', 'inventory'
+                ]),
+                'max_users': 15,
+                'max_branches': 5,
+                'sort_order': 5
             },
         ]
         

@@ -28,6 +28,7 @@ class BusinessCategory(models.Model):
         ('salon', 'Salon & Barber Shops'),
         ('corporate', 'Corporate Stores / Staff Canteens'),
         ('ecommerce', 'Online Shops (E-commerce Only)'),
+        ('professional_services', 'Professional Services / Consulting'),
         ('other', 'Others (Custom Category)'),
     ]
     

@@ -32,6 +32,8 @@ import TaxManagement from './pages/TaxManagement'
 import ChartOfAccounts from './pages/ChartOfAccounts'
 import JournalEntries from './pages/JournalEntries'
 import AccountingReports from './pages/AccountingReports'
+import Quotations from './pages/Quotations'
+import Invoices from './pages/Invoices'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
 import RoleProtectedRoute from './components/RoleProtectedRoute'
@@ -238,6 +240,16 @@ function App() {
                   <Route path="accounting-reports" element={
                     <RoleProtectedRoute requiredPermission="canAccessReports">
                       <AccountingReports />
+                    </RoleProtectedRoute>
+                  } />
+                  <Route path="quotations" element={
+                    <RoleProtectedRoute requiredPermission="canAccessSales">
+                      <Quotations />
+                    </RoleProtectedRoute>
+                  } />
+                  <Route path="invoices" element={
+                    <RoleProtectedRoute requiredPermission="canAccessSales">
+                      <Invoices />
                     </RoleProtectedRoute>
                   } />
                 </Route>

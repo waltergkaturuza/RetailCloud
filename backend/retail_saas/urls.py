@@ -38,6 +38,7 @@ urlpatterns = [
     path('api/auth/', include('core.email_verification_urls')),
     path('api/marketing/', include('marketing.urls')),
     path('api/employees/', include('employees.urls')),
+    path('api/quotes/', include('quotes.urls')),
 ]
 
 if settings.DEBUG:

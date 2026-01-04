@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'analytics',
     'marketing',  # Marketing automation
     'employees',  # Employee Management & HR
+    'quotes',  # Quotations & Customer Invoicing
 ]
 
 MIDDLEWARE = [

@@ -411,6 +411,8 @@ export function getAllowedNavItems(role: UserRole | undefined | null) {
     { path: '/customers', label: 'Customers', icon: '👥', allowed: permissions.canAccessCustomers },
     { path: '/suppliers', label: 'Suppliers', icon: '🏭', allowed: permissions.canAccessSuppliers },
     { path: '/sales', label: 'Sales', icon: '💰', allowed: permissions.canAccessSales },
+    { path: '/quotations', label: 'Quotations', icon: '📄', allowed: permissions.canAccessSales },
+    { path: '/invoices', label: 'Invoices', icon: '🧾', allowed: permissions.canAccessSales },
     { path: '/purchases', label: 'Purchases', icon: '🛍️', allowed: permissions.canAccessPurchases },
     { path: '/returns', label: 'Returns', icon: '↩️', allowed: permissions.canAccessReturns },
     { path: '/reports', label: 'Reports', icon: '📈', allowed: permissions.canAccessReports },
