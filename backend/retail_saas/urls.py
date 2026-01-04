@@ -39,6 +39,7 @@ urlpatterns = [
     path('api/marketing/', include('marketing.urls')),
     path('api/employees/', include('employees.urls')),
     path('api/quotes/', include('quotes.urls')),
+    path('api/ai-chatbot/', include('ai_chatbot.urls')),
 ]
 
 if settings.DEBUG:

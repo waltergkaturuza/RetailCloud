@@ -4,7 +4,6 @@ Uses company branding from Tenant model
 """
 from django.template.loader import render_to_string
 from django.http import HttpResponse
-from weasyprint import HTML, CSS
 from io import BytesIO
 from .models import Quotation, CustomerInvoice
 from core.models import Tenant
@@ -20,7 +19,15 @@ def generate_quotation_pdf(quotation: Quotation) -> BytesIO:
         
     Returns:
         BytesIO: PDF file buffer
+    
+    Raises:
+        ImportError: If weasyprint is not available
     """
+    try:
+        from weasyprint import HTML
+    except ImportError:
+        raise ImportError("WeasyPrint is not available. Please install it: pip install weasyprint")
+    
     tenant = quotation.tenant
     
     # Prepare context data
@@ -55,7 +62,15 @@ def generate_invoice_pdf(invoice: CustomerInvoice) -> BytesIO:
         
     Returns:
         BytesIO: PDF file buffer
+    
+    Raises:
+        ImportError: If weasyprint is not available
     """
+    try:
+        from weasyprint import HTML
+    except ImportError:
+        raise ImportError("WeasyPrint is not available. Please install it: pip install weasyprint")
+    
     tenant = invoice.tenant
     
     # Prepare context data
@@ -96,4 +111,3 @@ def invoice_pdf_response(invoice: CustomerInvoice) -> HttpResponse:
     response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
     response['Content-Disposition'] = f'inline; filename="invoice_{invoice.invoice_number}.pdf"'
     return response
-

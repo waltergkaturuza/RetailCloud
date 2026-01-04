@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'marketing',  # Marketing automation
     'employees',  # Employee Management & HR
     'quotes',  # Quotations & Customer Invoicing
+    'ai_chatbot',  # AI CEO Chatbot
 ]
 
 MIDDLEWARE = [

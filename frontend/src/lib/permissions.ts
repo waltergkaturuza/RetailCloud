@@ -413,6 +413,7 @@ export function getAllowedNavItems(role: UserRole | undefined | null) {
     { path: '/sales', label: 'Sales', icon: '💰', allowed: permissions.canAccessSales },
     { path: '/quotations', label: 'Quotations', icon: '📄', allowed: permissions.canAccessSales },
     { path: '/invoices', label: 'Invoices', icon: '🧾', allowed: permissions.canAccessSales },
+    { path: '/ai-chatbot', label: 'AI CEO Chatbot', icon: '🤖', allowed: permissions.canAccessDashboard },
     { path: '/purchases', label: 'Purchases', icon: '🛍️', allowed: permissions.canAccessPurchases },
     { path: '/returns', label: 'Returns', icon: '↩️', allowed: permissions.canAccessReturns },
     { path: '/reports', label: 'Reports', icon: '📈', allowed: permissions.canAccessReports },
