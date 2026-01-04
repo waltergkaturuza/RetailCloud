@@ -113,7 +113,22 @@ class ChatConversationViewSet(viewsets.ModelViewSet):
             )
         
         tenant = get_tenant_from_request(request)
-        chatbot_service = AIChatbotService(tenant)
+        if not tenant:
+            return Response(
+                {'error': 'Tenant not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        try:
+            chatbot_service = AIChatbotService(tenant)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error creating AIChatbotService: {str(e)}", exc_info=True)
+            return Response(
+                {'error': f'Failed to initialize chatbot service: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
         
         try:
             with transaction.atomic():
@@ -128,6 +143,9 @@ class ChatConversationViewSet(viewsets.ModelViewSet):
                 serializer = ChatConversationDetailSerializer(conversation)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
         except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error creating conversation: {str(e)}", exc_info=True)
             return Response(
                 {'error': f'Failed to create conversation: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR

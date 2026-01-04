@@ -44,18 +44,27 @@ class AIChatbotService:
                 created_at__gte=thirty_days_ago
             )
             
-            total_sales = sum(sale.total_amount for sale in recent_sales)
+            total_sales = sum(float(sale.total_amount or 0) for sale in recent_sales)
             sale_count = recent_sales.count()
             product_count = Product.objects.filter(tenant=self.tenant).count()
             
             return {
-                'total_sales_30d': float(total_sales),
+                'total_sales_30d': total_sales,
                 'sale_count_30d': sale_count,
                 'total_products': product_count,
                 'last_updated': timezone.now().isoformat(),
             }
-        except Exception:
-            return {}
+        except Exception as e:
+            # Log error but don't fail
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Error getting key metrics for tenant {self.tenant.id}: {str(e)}")
+            return {
+                'total_sales_30d': 0,
+                'sale_count_30d': 0,
+                'total_products': 0,
+                'last_updated': timezone.now().isoformat(),
+            }
     
     def _build_system_prompt(self) -> str:
         """Build the system prompt for the AI."""

@@ -98,7 +98,8 @@ class Command(BaseCommand):
                 'modules': Module.objects.filter(code__in=[
                     'inventory', 'pos', 'sales_customers', 'suppliers_purchases',
                     'roles_permissions', 'financial_reporting', 'multi_branch',
-                    'ai_analytics', 'barcode_automation', 'offline_pos'
+                    'ai_analytics', 'barcode_automation', 'offline_pos',
+                    'quotations_invoicing', 'accounting'
                 ]),
                 'max_users': 25,
                 'max_branches': 10,
