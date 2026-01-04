@@ -146,3 +146,4 @@ Based on the error, the most likely causes are:
 
 Once you check the Network tab, you'll see the actual error! The JSON parse error is just the symptom - the real error is in the Network tab or backend logs.
 
+

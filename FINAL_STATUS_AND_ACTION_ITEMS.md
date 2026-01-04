@@ -157,3 +157,4 @@ Once you set these 3 environment variables, everything should work! 🚀
 - Verify `CORS_ALLOWED_ORIGINS` includes frontend domain
 - Check backend logs for CORS or 404 errors
 
+

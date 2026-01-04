@@ -115,3 +115,4 @@ If you run into issues:
 
 **Bottom Line**: Railway offers the best value at **~$10/month** with **512MB RAM**, **fast deployment**, and **all services included**. Perfect for your shop management system! 🎉
 
+

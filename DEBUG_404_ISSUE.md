@@ -86,3 +86,4 @@ fetch('https://retailcloud.railway.app/api/')
 
 This will show if the app is responding at all.
 
+

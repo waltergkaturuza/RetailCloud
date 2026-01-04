@@ -86,3 +86,4 @@ Accounting module: Double-Entry Accounting - Active: True
      - Journal Entries (`/journal-entries`)
      - Accounting Reports (`/accounting-reports`)
 
+

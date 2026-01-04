@@ -46,3 +46,4 @@ CMD sh -c "python manage.py seed_business_categories || true && python manage.py
 
 **This is a one-time setup. Once seeded, categories persist in the database.**
 
+

@@ -74,3 +74,4 @@ REDIS_URL=redis://:password@host:port
 
 Your Django code will work as-is - no changes needed! ✅
 
+

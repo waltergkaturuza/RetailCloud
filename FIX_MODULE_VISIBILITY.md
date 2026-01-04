@@ -23,3 +23,4 @@ Add accounting module only to categories where it makes sense (e.g., all categor
 - Still highlight recommended modules
 - This way tenants can discover and request any module
 
+

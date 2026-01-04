@@ -539,3 +539,4 @@ export default function JournalEntryForm({ entry, onClose, onSave }: JournalEntr
   )
 }
 
+

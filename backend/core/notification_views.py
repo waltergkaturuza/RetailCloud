@@ -151,3 +151,4 @@ class NotificationPreferenceViewSet(viewsets.ModelViewSet):
         """Update preferences for current user."""
         serializer.save(user=self.request.user)
 
+

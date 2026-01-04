@@ -63,3 +63,4 @@
 3. Integrate serial pattern recognition into inventory import
 4. Add location tracking to stock movements
 
+

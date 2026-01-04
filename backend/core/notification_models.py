@@ -137,3 +137,4 @@ class NotificationPreference(models.Model):
     def __str__(self):
         return f"Notification preferences for {self.user.email}"
 
+

@@ -37,3 +37,4 @@ https://retailcloud.onrender.com
 
 **Note:** This applies to ALL origins in CORS_ALLOWED_ORIGINS - they should never have trailing slashes, paths, or protocols other than https:// (or http:// for localhost).
 
+

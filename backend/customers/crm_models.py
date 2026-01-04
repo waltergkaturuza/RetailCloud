@@ -417,3 +417,4 @@ class LoyaltyRedemption(models.Model):
     def __str__(self):
         return f"{self.customer.full_name} - {self.reward.name} ({self.points_used} points)"
 
+

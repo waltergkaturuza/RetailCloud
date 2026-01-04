@@ -49,3 +49,4 @@ export const getResponsiveButtonSize = (width: number) => {
   return { padding: '12px 24px', fontSize: '16px', minHeight: '40px' }
 }
 
+

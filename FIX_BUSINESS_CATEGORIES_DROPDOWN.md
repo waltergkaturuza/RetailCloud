@@ -69,3 +69,4 @@ To verify the fix:
 ## Status
 ✅ **Fixed** - Categories should now load correctly in the dropdown.
 
+

@@ -84,3 +84,4 @@ class EmployeeGoalAdmin(admin.ModelAdmin):
     search_fields = ['employee__first_name', 'employee__last_name', 'title']
     readonly_fields = ['progress_percentage', 'created_at', 'updated_at']
 
+

@@ -96,3 +96,4 @@ After both redeploy:
 
 **Both environment variables are required for frontend and backend to communicate!**
 
+

@@ -101,3 +101,4 @@ It follows the same pattern as SystemSettings and provides better flexibility fo
 
 **Note:** The immediate fix is still to **seed the categories** (run the command). The owner interface would be a nice-to-have enhancement.
 
+

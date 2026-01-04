@@ -107,3 +107,4 @@ user.save()
 4. **Case sensitivity**: Username/password might be case-sensitive
 5. **Special characters**: Make sure special characters in password are typed correctly
 
+

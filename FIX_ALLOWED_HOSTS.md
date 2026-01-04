@@ -47,3 +47,4 @@ Django's `ALLOWED_HOSTS` is a security feature that specifies which host/domain 
 
 **After fixing, your backend will properly accept requests from both domains!**
 
+

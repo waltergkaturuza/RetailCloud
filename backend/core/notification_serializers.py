@@ -60,3 +60,4 @@ class MarkAsReadSerializer(serializers.Serializer):
         help_text="List of notification IDs to mark as read. If empty, marks all as read."
     )
 
+

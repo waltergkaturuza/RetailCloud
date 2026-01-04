@@ -190,11 +190,10 @@ class TenantModuleViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
         
-        # Check permission (owner or tenant admin)
-        if not (request.user.role == 'super_admin' or 
-                (hasattr(request, 'tenant') and request.tenant == tenant_module.tenant)):
+        # Only super_admin (owner) can approve module activations
+        if request.user.role != 'super_admin':
             return Response(
-                {'error': 'Permission denied'},
+                {'error': 'Permission denied. Only owners can approve module activations.'},
                 status=status.HTTP_403_FORBIDDEN
             )
         
@@ -294,6 +293,102 @@ class TenantModuleViewSet(viewsets.ModelViewSet):
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+    
+    @action(detail=True, methods=['post'])
+    def record_approval(self, request, pk=None):
+        """Record owner approval for an active module (corrects activated_by field)."""
+        if request.user.role != 'super_admin':
+            return Response(
+                {'error': 'Permission denied. Only owners can record approvals.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            tenant_module = self.get_object()
+        except TenantModule.DoesNotExist:
+            return Response(
+                {'error': 'Module activation request not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Update activated_by to the current owner
+        tenant_module.activated_by = request.user
+        tenant_module.save()
+        
+        # Refresh from DB
+        tenant_module.refresh_from_db()
+        return Response({
+            'success': True,
+            'message': f'Approval recorded for {tenant_module.module.name}',
+            'tenant_module': TenantModuleSerializer(tenant_module).data
+        })
+    
+    @action(detail=True, methods=['post'])
+    def suspend(self, request, pk=None):
+        """Suspend an active module (owner only)."""
+        if request.user.role != 'super_admin':
+            return Response(
+                {'error': 'Permission denied. Only owners can suspend modules.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            tenant_module = self.get_object()
+        except TenantModule.DoesNotExist:
+            return Response(
+                {'error': 'Module activation request not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        if tenant_module.status != 'active':
+            return Response(
+                {'error': f'Can only suspend active modules. Current status: {tenant_module.status}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        tenant_module.status = 'suspended'
+        tenant_module.save()
+        
+        tenant_module.refresh_from_db()
+        return Response({
+            'success': True,
+            'message': f'Module {tenant_module.module.name} has been suspended',
+            'tenant_module': TenantModuleSerializer(tenant_module).data
+        })
+    
+    @action(detail=True, methods=['post'])
+    def reactivate(self, request, pk=None):
+        """Reactivate a suspended module (owner only)."""
+        if request.user.role != 'super_admin':
+            return Response(
+                {'error': 'Permission denied. Only owners can reactivate modules.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            tenant_module = self.get_object()
+        except TenantModule.DoesNotExist:
+            return Response(
+                {'error': 'Module activation request not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        if tenant_module.status != 'suspended':
+            return Response(
+                {'error': f'Can only reactivate suspended modules. Current status: {tenant_module.status}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        tenant_module.status = 'active'
+        tenant_module.activated_by = request.user  # Set the owner as the one who reactivated
+        tenant_module.save()
+        
+        tenant_module.refresh_from_db()
+        return Response({
+            'success': True,
+            'message': f'Module {tenant_module.module.name} has been reactivated',
+            'tenant_module': TenantModuleSerializer(tenant_module).data
+        })
     
     @action(detail=False, methods=['get'])
     def pending_approval(self, request):

@@ -169,3 +169,4 @@ class LoyaltyRedemptionSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['redeemed_at']
 
+

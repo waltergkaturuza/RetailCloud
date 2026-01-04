@@ -36,3 +36,4 @@ To verify categories load correctly:
 
 **All categories are fetching correctly! ✅**
 
+

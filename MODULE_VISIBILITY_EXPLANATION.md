@@ -54,3 +54,4 @@ To make the accounting module visible to tenants:
 
 The accounting module will appear in `/api/core/modules/` but NOT in `/api/subscriptions/tenant-modules/recommended/` unless it's mapped to the tenant's business category.
 
+

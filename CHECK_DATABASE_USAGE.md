@@ -206,3 +206,4 @@ EOF
 
 **Run the check and share the output - this will confirm if you're using SQLite or PostgreSQL!**
 
+

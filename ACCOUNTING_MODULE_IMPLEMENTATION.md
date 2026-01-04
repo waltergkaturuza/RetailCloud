@@ -214,3 +214,4 @@ This is a **premium module** that requires:
 - General ledger is automatically updated when entries are posted
 - Account balances are calculated on-demand, not stored (except in GeneralLedger for performance)
 
+

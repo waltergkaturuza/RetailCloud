@@ -215,3 +215,4 @@ class SerialNumberPattern(models.Model):
         product_name = f" - {self.product.name}" if self.product else ""
         return f"{self.name}{product_name}"
 
+

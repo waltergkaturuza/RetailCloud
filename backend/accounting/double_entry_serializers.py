@@ -239,3 +239,4 @@ class CashFlowSerializer(serializers.Serializer):
     closing_cash = serializers.DecimalField(max_digits=12, decimal_places=2)
     reconciliation = serializers.DecimalField(max_digits=12, decimal_places=2)
 
+

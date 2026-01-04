@@ -134,3 +134,4 @@ Based on what you're seeing:
 
 **Please scroll down in the Environment Variables and tell me what database-related variables you see!**
 
+

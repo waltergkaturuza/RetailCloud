@@ -37,3 +37,4 @@ The `|| true` ensures it doesn't fail if categories already exist.
 
 **After seeding, categories will persist. This is a one-time setup!**
 
+

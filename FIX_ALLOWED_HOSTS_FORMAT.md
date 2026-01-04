@@ -81,3 +81,4 @@ retailcloud-backend.onrender.com, retailcloud.onrender.com
 
 **Note:** This is a common mistake - environment variables are strings, not JSON. Django will parse the string internally.
 
+

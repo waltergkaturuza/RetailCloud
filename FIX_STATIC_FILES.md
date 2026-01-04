@@ -54,3 +54,4 @@ After deployment, check:
 
 **Note:** WhiteNoise is the recommended solution for Django static files on platforms like Render, Heroku, and other PaaS providers. It's lightweight, efficient, and doesn't require additional configuration.
 
+

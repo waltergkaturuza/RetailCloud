@@ -52,3 +52,4 @@ class HasAccountingModule(BasePermission):
             raise PermissionDenied(message)
         return has_module
 
+

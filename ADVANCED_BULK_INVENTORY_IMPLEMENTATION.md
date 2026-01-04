@@ -177,3 +177,4 @@ POST /api/inventory/bulk/bulk_update_locations/
 
 **The Advanced Bulk Inventory System is ready for frontend integration!** 🎉
 
+

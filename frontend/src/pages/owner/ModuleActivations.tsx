@@ -99,9 +99,75 @@ export default function OwnerModuleActivations() {
     },
   })
 
+  // Record approval (for active modules that need activated_by corrected)
+  const recordApprovalMutation = useMutation({
+    mutationFn: async (moduleId: number) => {
+      const response = await api.post(`/subscriptions/tenant-modules/${moduleId}/record_approval/`)
+      return response.data
+    },
+    onSuccess: (data) => {
+      toast.success(data.message || 'Approval recorded successfully')
+      queryClient.invalidateQueries({ queryKey: ['owner-pending-modules'] })
+      queryClient.invalidateQueries({ queryKey: ['owner-all-modules'] })
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Failed to record approval')
+    },
+  })
+
+  // Suspend module
+  const suspendMutation = useMutation({
+    mutationFn: async (moduleId: number) => {
+      const response = await api.post(`/subscriptions/tenant-modules/${moduleId}/suspend/`)
+      return response.data
+    },
+    onSuccess: (data) => {
+      toast.success(data.message || 'Module suspended successfully')
+      queryClient.invalidateQueries({ queryKey: ['owner-pending-modules'] })
+      queryClient.invalidateQueries({ queryKey: ['owner-all-modules'] })
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Failed to suspend module')
+    },
+  })
+
+  // Reactivate module
+  const reactivateMutation = useMutation({
+    mutationFn: async (moduleId: number) => {
+      const response = await api.post(`/subscriptions/tenant-modules/${moduleId}/reactivate/`)
+      return response.data
+    },
+    onSuccess: (data) => {
+      toast.success(data.message || 'Module reactivated successfully')
+      queryClient.invalidateQueries({ queryKey: ['owner-pending-modules'] })
+      queryClient.invalidateQueries({ queryKey: ['owner-all-modules'] })
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Failed to reactivate module')
+    },
+  })
+
   const handleApprove = (module: TenantModule) => {
     if (confirm(`Approve activation of "${module.module_name}" for ${module.tenant_name}?`)) {
       approveMutation.mutate(module.id)
+    }
+  }
+
+  const handleRecordApproval = (module: TenantModule) => {
+    if (confirm(`Record your approval for "${module.module_name}" for ${module.tenant_name}? This will update the "Approved By" field to show you as the approver.`)) {
+      recordApprovalMutation.mutate(module.id)
+    }
+  }
+
+  const handleSuspend = (module: TenantModule) => {
+    if (confirm(`Suspend "${module.module_name}" for ${module.tenant_name}? The module will be deactivated.`)) {
+      suspendMutation.mutate(module.id)
+    }
+  }
+
+  const handleReactivate = (module: TenantModule) => {
+    if (confirm(`Reactivate "${module.module_name}" for ${module.tenant_name}?`)) {
+      reactivateMutation.mutate(module.id)
     }
   }
 
@@ -410,7 +476,7 @@ export default function OwnerModuleActivations() {
                         {module.activated_by_name || '-'}
                       </td>
                       <td style={{ padding: '12px', textAlign: 'right' }}>
-                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap' }}>
                           {module.status === 'pending' && (
                             <Button
                               size="small"
@@ -436,15 +502,37 @@ export default function OwnerModuleActivations() {
                               </span>
                             </>
                           )}
-                          {module.status === 'active' && !module.activated_by_name && (
+                          {module.status === 'active' && (
+                            <>
+                              <Button
+                                size="small"
+                                variant="secondary"
+                                onClick={() => handleRecordApproval(module)}
+                                disabled={recordApprovalMutation.isPending}
+                                title="Record your approval for this module"
+                              >
+                                ✓ Record Approval
+                              </Button>
+                              <Button
+                                size="small"
+                                variant="warning"
+                                onClick={() => handleSuspend(module)}
+                                disabled={suspendMutation.isPending}
+                                title="Suspend this module"
+                              >
+                                ⏸ Suspend
+                              </Button>
+                            </>
+                          )}
+                          {module.status === 'suspended' && (
                             <Button
                               size="small"
                               variant="success"
-                              onClick={() => handleApprove(module)}
-                              disabled={approveMutation.isPending}
-                              title="Record owner approval for this module"
+                              onClick={() => handleReactivate(module)}
+                              disabled={reactivateMutation.isPending}
+                              title="Reactivate this module"
                             >
-                              ✓ Record Approval
+                              ▶ Reactivate
                             </Button>
                           )}
                         </div>

@@ -52,3 +52,4 @@ if DOUBLE_ENTRY_AVAILABLE:
         readonly_fields = ['updated_at']
         raw_id_fields = ['tenant', 'account']
 
+

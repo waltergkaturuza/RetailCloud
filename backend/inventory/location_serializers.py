@@ -95,3 +95,4 @@ class SerialNumberPatternSerializer(serializers.ModelSerializer):
         
         return value
 
+

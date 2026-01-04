@@ -170,3 +170,4 @@ interface OfflineSale {
 
 **You can safely refresh the page - you'll stay logged in unless you've been idle for 30+ minutes or your refresh token expired (7 days).**
 
+
