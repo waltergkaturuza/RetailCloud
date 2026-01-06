@@ -1,9 +1,13 @@
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { getAllowedNavItems } from '../lib/permissions'
 import NotificationCenter from './NotificationCenter'
+import Footer from './Footer'
+import TermsAcceptanceModal from './TermsAcceptanceModal'
+import api from '../lib/api'
 
 export default function Layout() {
   const { user, logout } = useAuth()
