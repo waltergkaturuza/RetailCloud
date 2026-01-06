@@ -116,6 +116,38 @@ export default function Layout() {
     }
   }, [isMobile, isDrawerOpen])
 
+  // Check if user has accepted terms and privacy policy
+  const { data: agreementData, isLoading: agreementLoading } = useQuery({
+    queryKey: ['user-agreement'],
+    queryFn: async () => {
+      try {
+        const response = await api.get('/accounts/agreement/')
+        return response.data
+      } catch (error: any) {
+        // If 404, user hasn't accepted yet
+        if (error.response?.status === 404) {
+          return { terms_accepted: false, privacy_accepted: false, has_accepted_all: false }
+        }
+        throw error
+      }
+    },
+    enabled: !!user, // Only check if user is logged in
+    retry: false,
+  })
+  
+  const [showTermsModal, setShowTermsModal] = useState(false)
+  
+  // Show terms modal if user hasn't accepted
+  useEffect(() => {
+    if (user && agreementData && !agreementData.has_accepted_all && !agreementLoading) {
+      setShowTermsModal(true)
+    }
+  }, [user, agreementData, agreementLoading])
+  
+  const handleTermsAccepted = () => {
+    setShowTermsModal(false)
+  }
+  
   // Get allowed navigation items based on user role
   const navItems = getAllowedNavItems(user?.role as any)
 
@@ -388,8 +420,12 @@ export default function Layout() {
             )}
           </div>
         </div>
-        <Outlet />
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          <Outlet />
+        </div>
+        <Footer />
       </main>
+      <TermsAcceptanceModal isOpen={showTermsModal} onAccept={handleTermsAccepted} />
     </div>
   )
 }
