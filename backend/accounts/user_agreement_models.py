@@ -40,6 +40,19 @@ class UserAgreement(models.Model):
     # IP Address tracking (for legal purposes)
     accepted_from_ip = models.GenericIPAddressField(null=True, blank=True, help_text="IP address when agreements were accepted")
     
+    # Device/Browser tracking - to show terms on new devices
+    device_fingerprint = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        help_text="Device/browser fingerprint to track acceptance per device"
+    )
+    user_agent = models.TextField(
+        blank=True,
+        default='',
+        help_text="User agent string when agreements were accepted"
+    )
+    
     class Meta:
         db_table = 'user_agreements'
         verbose_name = 'User Agreement'
