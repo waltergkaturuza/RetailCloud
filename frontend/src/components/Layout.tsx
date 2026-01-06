@@ -125,7 +125,7 @@ export default function Layout() {
         const { getDeviceFingerprint } = await import('../utils/deviceFingerprint')
         const deviceFingerprint = getDeviceFingerprint()
         
-        const response = await api.get('/accounts/agreement/', {
+        const response = await api.get('/auth/agreement/', {
           headers: {
             'X-Device-Fingerprint': deviceFingerprint,
           }

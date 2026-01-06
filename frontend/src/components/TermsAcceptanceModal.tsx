@@ -24,7 +24,7 @@ export default function TermsAcceptanceModal({ isOpen, onAccept }: TermsAcceptan
 
   const acceptMutation = useMutation({
     mutationFn: async (data: { accept_terms: boolean; accept_privacy: boolean }) => {
-      return api.post('/accounts/agreement/', {
+      return api.post('/auth/agreement/', {
         accept_terms: data.accept_terms,
         accept_privacy: data.accept_privacy,
         terms_version: 'December 2024',
