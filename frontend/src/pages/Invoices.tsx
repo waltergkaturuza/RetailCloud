@@ -177,7 +177,7 @@ export default function Invoices() {
   }, [invoices])
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
+    <div style={{ padding: '24px', width: '100%' }}>
       <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 style={{ margin: 0, marginBottom: '8px', fontSize: '28px', fontWeight: '700', color: '#2c3e50' }}>

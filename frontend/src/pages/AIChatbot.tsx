@@ -155,7 +155,7 @@ export default function AIChatbot() {
   const currentMessages = conversationDetail?.messages || []
 
   return (
-    <div style={{ display: 'flex', height: 'calc(100vh - 80px)', gap: '16px', padding: '24px', maxWidth: '1600px', margin: '0 auto' }}>
+    <div style={{ display: 'flex', height: 'calc(100vh - 80px)', gap: '16px', padding: '24px', width: '100%' }}>
       {/* Sidebar - Conversations List */}
       <div style={{ width: '300px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <Card>
