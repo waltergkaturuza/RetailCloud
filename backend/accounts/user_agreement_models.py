@@ -7,11 +7,11 @@ from .models import User
 
 
 class UserAgreement(models.Model):
-    """Track user acceptance of Terms and Conditions and Privacy Policy."""
-    user = models.OneToOneField(
+    """Track user acceptance of Terms and Conditions and Privacy Policy per device."""
+    user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='agreement',
+        related_name='agreements',
         help_text="User who accepted the agreements"
     )
     
