@@ -44,10 +44,6 @@ class UserAgreement(models.Model):
         db_table = 'user_agreements'
         verbose_name = 'User Agreement'
         verbose_name_plural = 'User Agreements'
-        unique_together = [['user', 'device_fingerprint']]
-        indexes = [
-            models.Index(fields=['user', 'device_fingerprint']),
-        ]
     
     def __str__(self):
         return f"{self.user.username} - Device: {self.device_fingerprint[:20] if self.device_fingerprint else 'N/A'}"
