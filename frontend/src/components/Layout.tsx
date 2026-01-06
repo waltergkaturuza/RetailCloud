@@ -116,15 +116,23 @@ export default function Layout() {
     }
   }, [isMobile, isDrawerOpen])
 
-  // Check if user has accepted terms and privacy policy
+  // Check if user has accepted terms and privacy policy for this device
   const { data: agreementData, isLoading: agreementLoading } = useQuery({
     queryKey: ['user-agreement'],
     queryFn: async () => {
       try {
-        const response = await api.get('/accounts/agreement/')
+        // Include device fingerprint in request
+        const { getDeviceFingerprint } = await import('../utils/deviceFingerprint')
+        const deviceFingerprint = getDeviceFingerprint()
+        
+        const response = await api.get('/accounts/agreement/', {
+          headers: {
+            'X-Device-Fingerprint': deviceFingerprint,
+          }
+        })
         return response.data
       } catch (error: any) {
-        // If 404, user hasn't accepted yet
+        // If 404, user hasn't accepted yet for this device
         if (error.response?.status === 404) {
           return { terms_accepted: false, privacy_accepted: false, has_accepted_all: false }
         }

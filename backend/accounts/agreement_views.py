@@ -15,10 +15,27 @@ class UserAgreementView(views.APIView):
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
-        """Get user's agreement status."""
-        agreement, created = UserAgreement.objects.get_or_create(user=request.user)
+        """Get user's agreement status for current device."""
+        device_fingerprint = self._get_device_fingerprint(request)
+        agreement, created = UserAgreement.objects.get_or_create(
+            user=request.user,
+            device_fingerprint=device_fingerprint,
+            defaults={
+                'terms_accepted': False,
+                'privacy_accepted': False,
+            }
+        )
         serializer = UserAgreementSerializer(agreement)
         return Response(serializer.data)
+    
+    def _get_device_fingerprint(self, request):
+        """Generate a device fingerprint from user agent and other factors."""
+        import hashlib
+        user_agent = request.META.get('HTTP_USER_AGENT', '')
+        # Create a simple fingerprint from user agent
+        # In production, you might want to include more factors like screen resolution, timezone, etc.
+        fingerprint_string = f"{user_agent}"
+        return hashlib.sha256(fingerprint_string.encode()).hexdigest()[:64]
     
     def post(self, request):
         """Accept agreements."""
@@ -32,8 +49,19 @@ class UserAgreementView(views.APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Get or create agreement
-        agreement, created = UserAgreement.objects.get_or_create(user=request.user)
+        # Get device fingerprint
+        device_fingerprint = self._get_device_fingerprint(request)
+        user_agent = request.META.get('HTTP_USER_AGENT', '')
+        
+        # Get or create agreement for this device
+        agreement, created = UserAgreement.objects.get_or_create(
+            user=request.user,
+            device_fingerprint=device_fingerprint,
+            defaults={
+                'terms_accepted': False,
+                'privacy_accepted': False,
+            }
+        )
         
         # Get IP address
         ip_address = None
@@ -51,7 +79,9 @@ class UserAgreementView(views.APIView):
         agreement.accept_all(
             ip_address=ip_address,
             terms_version=terms_version,
-            privacy_version=privacy_version
+            privacy_version=privacy_version,
+            device_fingerprint=device_fingerprint,
+            user_agent=user_agent
         )
         
         response_serializer = UserAgreementSerializer(agreement)

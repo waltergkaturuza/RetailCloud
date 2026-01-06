@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../lib/api'
 import Button from './ui/Button'
+import LegalDocumentModal from './LegalDocumentModal'
 import './TermsAcceptanceModal.css'
 
 interface TermsAcceptanceModalProps {
@@ -17,6 +18,8 @@ export default function TermsAcceptanceModal({ isOpen, onAccept }: TermsAcceptan
   const [acceptTerms, setAcceptTerms] = useState(false)
   const [acceptPrivacy, setAcceptPrivacy] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [showTermsModal, setShowTermsModal] = useState(false)
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false)
   const queryClient = useQueryClient()
 
   const acceptMutation = useMutation({
@@ -120,9 +123,16 @@ export default function TermsAcceptanceModal({ isOpen, onAccept }: TermsAcceptan
               />
               <span className="terms-checkbox-text">
                 I have read and accept the{' '}
-                <a href="/terms" target="_blank" rel="noopener noreferrer" className="terms-link">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    setShowTermsModal(true)
+                  }}
+                  className="terms-link-button"
+                >
                   Terms and Conditions
-                </a>
+                </button>
                 {' '}*
               </span>
             </label>
@@ -137,9 +147,16 @@ export default function TermsAcceptanceModal({ isOpen, onAccept }: TermsAcceptan
               />
               <span className="terms-checkbox-text">
                 I have read and accept the{' '}
-                <a href="/privacy" target="_blank" rel="noopener noreferrer" className="terms-link">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    setShowPrivacyModal(true)
+                  }}
+                  className="terms-link-button"
+                >
                   Privacy Policy
-                </a>
+                </button>
                 {' '}*
               </span>
             </label>
@@ -163,6 +180,18 @@ export default function TermsAcceptanceModal({ isOpen, onAccept }: TermsAcceptan
           </div>
         </div>
       </div>
+      
+      {/* Legal Document Modals */}
+      <LegalDocumentModal
+        isOpen={showTermsModal}
+        onClose={() => setShowTermsModal(false)}
+        documentType="terms"
+      />
+      <LegalDocumentModal
+        isOpen={showPrivacyModal}
+        onClose={() => setShowPrivacyModal(false)}
+        documentType="privacy"
+      />
     </div>
   )
 }

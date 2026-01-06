@@ -44,9 +44,13 @@ class UserAgreement(models.Model):
         db_table = 'user_agreements'
         verbose_name = 'User Agreement'
         verbose_name_plural = 'User Agreements'
+        unique_together = [['user', 'device_fingerprint']]
+        indexes = [
+            models.Index(fields=['user', 'device_fingerprint']),
+        ]
     
     def __str__(self):
-        return f"{self.user.username} - Terms: {self.terms_accepted}, Privacy: {self.privacy_accepted}"
+        return f"{self.user.username} - Device: {self.device_fingerprint[:20] if self.device_fingerprint else 'N/A'}"
     
     def has_accepted_all(self):
         """Check if user has accepted both Terms and Privacy Policy."""
@@ -72,8 +76,13 @@ class UserAgreement(models.Model):
             self.accepted_from_ip = ip_address
         self.save()
     
-    def accept_all(self, ip_address=None, terms_version=None, privacy_version=None):
+    def accept_all(self, ip_address=None, terms_version=None, privacy_version=None, device_fingerprint=None, user_agent=None):
         """Accept both Terms and Privacy Policy."""
         self.accept_terms(ip_address, terms_version)
         self.accept_privacy(ip_address, privacy_version)
+        if device_fingerprint:
+            self.device_fingerprint = device_fingerprint
+        if user_agent:
+            self.user_agent = user_agent
+        self.save()
 
