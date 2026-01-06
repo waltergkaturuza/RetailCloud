@@ -5,13 +5,28 @@
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes in milliseconds
 
 let idleTimer: NodeJS.Timeout | null = null;
-let lastActivityTime = Date.now();
+// Initialize lastActivityTime from localStorage or current time
+// This preserves activity time across page refreshes (within reason)
+let lastActivityTime = (() => {
+  const stored = localStorage.getItem('last_activity_time');
+  if (stored) {
+    const storedTime = parseInt(stored, 10);
+    const now = Date.now();
+    // If stored time is more than IDLE_TIMEOUT_MS ago, it's invalid
+    if (now - storedTime < IDLE_TIMEOUT_MS) {
+      return storedTime;
+    }
+  }
+  return Date.now();
+})();
 
 /**
  * Reset the idle timer
  */
 export function resetIdleTimer() {
   lastActivityTime = Date.now();
+  // Store in localStorage to persist across page refreshes
+  localStorage.setItem('last_activity_time', lastActivityTime.toString());
   
   if (idleTimer) {
     clearTimeout(idleTimer);
@@ -38,6 +53,7 @@ function handleIdleTimeout() {
   localStorage.removeItem('tenant_slug');
   localStorage.removeItem('user');
   localStorage.removeItem('owner_user');
+  localStorage.removeItem('last_activity_time'); // Clear activity time on logout
   
   // Trigger logout event
   window.dispatchEvent(new CustomEvent('auth:logout'));
@@ -68,12 +84,24 @@ export function initIdleTimeout() {
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
       // User came back to the tab, check if they've been away too long
-      const timeSinceLastActivity = Date.now() - lastActivityTime;
-      if (timeSinceLastActivity >= IDLE_TIMEOUT_MS) {
-        handleIdleTimeout();
+      const stored = localStorage.getItem('last_activity_time');
+      if (stored) {
+        const storedTime = parseInt(stored, 10);
+        const timeSinceLastActivity = Date.now() - storedTime;
+        if (timeSinceLastActivity >= IDLE_TIMEOUT_MS) {
+          handleIdleTimeout();
+        } else {
+          // Update lastActivityTime and reset timer
+          lastActivityTime = storedTime;
+          resetIdleTimer();
+        }
       } else {
+        // No stored time, treat as new activity
         resetIdleTimer();
       }
+    } else {
+      // Tab hidden, save current activity time
+      localStorage.setItem('last_activity_time', lastActivityTime.toString());
     }
   });
   

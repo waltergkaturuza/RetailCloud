@@ -124,6 +124,7 @@ export const authService = {
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('tenant_slug');
     localStorage.removeItem('user');
+    localStorage.removeItem('last_activity_time'); // Clear activity time on logout
   },
 
   getToken: (): string | null => {

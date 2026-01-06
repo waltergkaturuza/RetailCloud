@@ -23,17 +23,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(userData);
       authService.setCurrentUser(userData);
       setIsLoading(false);
+      // Update activity time on successful auth check
+      import('../utils/idleTimeout').then(({ resetIdleTimer }) => {
+        resetIdleTimer();
+      });
     } catch (error: any) {
       console.error('Failed to refresh user:', error);
-      // On 401, token is expired/invalid - logout
+      // Only logout on 401 (unauthorized) - token expired/invalid
+      // For network errors or other issues, don't logout immediately
+      // The API interceptor will handle token refresh
       if (error.response?.status === 401) {
-        authService.logout();
-        setUser(null);
+        // Token refresh might be happening, wait a bit
+        // If it's truly invalid, the interceptor will handle logout
+        if (!error.config?._retry) {
+          // This might be a network error, don't logout yet
+          setIsLoading(false);
+        }
+      } else if (error.code === 'ECONNABORTED' || error.message === 'Network Error') {
+        // Network error - don't logout, just show loading state
+        // User might be offline or backend is down
+        setIsLoading(false);
+        // Keep existing user if available
+        const storedUser = authService.getCurrentUser();
+        if (storedUser) {
+          setUser(storedUser);
+        }
       } else {
-        // Other errors - still clear user but don't force logout
-        setUser(null);
+        setIsLoading(false);
       }
-      setIsLoading(false);
     }
   };
   
