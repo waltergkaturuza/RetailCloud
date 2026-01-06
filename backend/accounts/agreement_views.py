@@ -31,9 +31,13 @@ class UserAgreementView(views.APIView):
     def _get_device_fingerprint(self, request):
         """Generate a device fingerprint from user agent and other factors."""
         import hashlib
+        # Get device fingerprint from header (sent by frontend) or generate from user agent
+        device_fingerprint = request.META.get('HTTP_X_DEVICE_FINGERPRINT', '')
+        if device_fingerprint:
+            return device_fingerprint
+        
+        # Fallback: generate from user agent
         user_agent = request.META.get('HTTP_USER_AGENT', '')
-        # Create a simple fingerprint from user agent
-        # In production, you might want to include more factors like screen resolution, timezone, etc.
         fingerprint_string = f"{user_agent}"
         return hashlib.sha256(fingerprint_string.encode()).hexdigest()[:64]
     
