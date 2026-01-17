@@ -119,6 +119,12 @@ class UserCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data.pop('password_confirm')
         password = validated_data.pop('password')
+        # Ensure email is normalized (lowercase, trimmed) before saving
+        if 'email' in validated_data:
+            validated_data['email'] = validated_data['email'].lower().strip()
+        # Ensure username is normalized
+        if 'username' in validated_data:
+            validated_data['username'] = validated_data['username'].strip()
         user = User.objects.create(**validated_data)
         user.set_password(password)
         user.save()

@@ -432,6 +432,12 @@ class TenantCreateUpdateSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         """Create tenant with default trial period."""
+        # Ensure email is normalized (lowercase, trimmed) before saving
+        if 'email' in validated_data:
+            validated_data['email'] = validated_data['email'].lower().strip()
+        # Ensure slug is normalized
+        if 'slug' in validated_data:
+            validated_data['slug'] = validated_data['slug'].lower().strip()
         if validated_data.get('subscription_status') == 'trial' and not validated_data.get('trial_ends_at'):
             validated_data['trial_ends_at'] = timezone.now() + timedelta(days=14)
         return super().create(validated_data)

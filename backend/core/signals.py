@@ -1,11 +1,23 @@
 """
-Django signals for automatic category creation.
+Django signals for automatic category creation and email normalization.
 """
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from .models import Tenant
 from inventory.models import Category
 from .industry_category_defaults import get_default_categories_for_industry
+
+
+@receiver(pre_save, sender=Tenant)
+def normalize_tenant_email(sender, instance, **kwargs):
+    """
+    Automatically normalize email addresses (lowercase, strip whitespace)
+    before saving to ensure consistency and prevent duplicates.
+    """
+    if instance.email:
+        normalized_email = instance.email.lower().strip()
+        if instance.email != normalized_email:
+            instance.email = normalized_email
 
 
 @receiver(post_save, sender=Tenant)
@@ -47,6 +59,19 @@ def create_default_categories(sender, instance, created, **kwargs):
             sort_order=len(existing_codes) + 1
         )
         existing_codes.add(code)
+
+
+@receiver(pre_save, sender=Tenant)
+def normalize_tenant_email(sender, instance, **kwargs):
+    """
+    Automatically normalize email addresses (lowercase, strip whitespace)
+    before saving to ensure consistency and prevent duplicates.
+    This signal runs before other pre_save signals.
+    """
+    if instance.email:
+        normalized_email = instance.email.lower().strip()
+        if instance.email != normalized_email:
+            instance.email = normalized_email
 
 
 @receiver(pre_save, sender=Tenant)

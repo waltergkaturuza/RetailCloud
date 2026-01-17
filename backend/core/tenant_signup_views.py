@@ -132,15 +132,33 @@ class TenantSignupView(views.APIView):
         # Create admin user for the tenant
         password = data.get('password')
         email = data.get('email').lower().strip() if data.get('email') else None
+        
+        # Ensure tenant email is normalized
+        if tenant.email != email:
+            tenant.email = email
+            tenant.save()
+        
         contact_person = data.get('contact_person', '')
         
         # Double-check email doesn't exist as a User (even though serializer should catch this)
         # This is a safety check in case someone bypasses the serializer
-        if User.objects.filter(email__iexact=email).exists():
+        # Use case-insensitive check
+        existing_user = User.objects.filter(email__iexact=email).first()
+        if existing_user:
             # Rollback tenant creation
             tenant.delete()
             return Response(
-                {'email': ['This email is already registered as a user account. Please use a different email.']},
+                {'email': [f'This email is already registered as a user account ({existing_user.username}). Please use a different email.']},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Double-check email doesn't exist as a Tenant (should have been caught by serializer)
+        existing_tenant = Tenant.objects.filter(email__iexact=email).exclude(pk=tenant.pk).first()
+        if existing_tenant:
+            # Rollback tenant creation
+            tenant.delete()
+            return Response(
+                {'email': [f'This email is already registered for tenant "{existing_tenant.company_name}". Please use a different email.']},
                 status=status.HTTP_400_BAD_REQUEST
             )
         

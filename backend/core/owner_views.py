@@ -247,14 +247,21 @@ class OwnerTenantViewSet(viewsets.ModelViewSet):
             # Create tenant admin user
             # Use tenant email - this is allowed as tenant admin shares tenant contact email
             admin_email = tenant.email.lower().strip()
-            admin_username = tenant.slug + '_admin'
+            admin_username = tenant.slug.lower().strip() + '_admin'
+            
+            # Double-check email normalization on tenant
+            if tenant.email != admin_email:
+                tenant.email = admin_email
+                tenant.save()
             
             # Validate email doesn't already exist as a user (should have been caught by serializer, but double-check)
-            if User.objects.filter(email__iexact=admin_email).exists():
+            # Use case-insensitive check
+            existing_user = User.objects.filter(email__iexact=admin_email).first()
+            if existing_user:
                 # Rollback tenant creation
                 tenant.delete()
                 return Response(
-                    {'email': ['This email is already registered as a user account. Please use a different email.']},
+                    {'email': [f'This email is already registered as a user account ({existing_user.username}). Please use a different email.']},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
