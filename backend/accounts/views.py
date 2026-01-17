@@ -353,12 +353,38 @@ class UserViewSet(viewsets.ModelViewSet):
             tenant = getattr(user, 'tenant', None) or getattr(request, 'tenant', None)
         
         # Security: Super Admin users must have tenant=None
-        if role == 'super_admin':
-            serializer.save(tenant=None)
-        elif tenant:
-            serializer.save(tenant=tenant)
-        else:
-            serializer.save()
+        try:
+            if role == 'super_admin':
+                serializer.save(tenant=None)
+            elif tenant:
+                serializer.save(tenant=tenant)
+            else:
+                serializer.save()
+        except Exception as e:
+            # Handle database constraint violations (e.g., duplicate email)
+            error_msg = str(e)
+            if 'email' in error_msg.lower() or 'unique' in error_msg.lower():
+                email = serializer.validated_data.get('email', '')
+                # Check if email exists as user
+                from .models import User
+                if User.objects.filter(email__iexact=email).exists():
+                    return Response(
+                        {'email': ['A user with this email already exists. Please use a different email.']},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                # Check if email exists as tenant
+                from core.models import Tenant
+                if Tenant.objects.filter(email__iexact=email).exists():
+                    return Response(
+                        {'email': ['This email is already registered as a tenant contact email. Please use a different email.']},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                return Response(
+                    {'email': ['This email is already in use. Please use a different email.']},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            # Re-raise other exceptions
+            raise
         
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)

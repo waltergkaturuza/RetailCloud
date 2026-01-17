@@ -54,6 +54,63 @@ class UserCreateSerializer(serializers.ModelSerializer):
             'first_name', 'last_name', 'phone', 'role', 'branch'
         ]
     
+    def validate_email(self, value):
+        """Ensure email is unique across all users.
+        
+        Special case: Tenant admin users can share the tenant's email,
+        but regular users cannot use an email that's already a tenant contact email.
+        """
+        if not value:
+            raise serializers.ValidationError("Email is required.")
+        
+        # Normalize email (lowercase, strip whitespace)
+        value = value.lower().strip()
+        
+        # Check if email already exists as a User (excluding current instance if updating)
+        queryset = User.objects.filter(email__iexact=value)
+        if self.instance:
+            queryset = queryset.exclude(pk=self.instance.pk)
+        if queryset.exists():
+            raise serializers.ValidationError(
+                "A user with this email already exists. Please use a different email."
+            )
+        
+        # Check if email is used by a Tenant
+        # If creating a tenant_admin user, we'll handle this in the view/special case
+        # For all other users, reject if email is already a tenant contact email
+        from core.models import Tenant
+        tenant_with_email = Tenant.objects.filter(email__iexact=value).first()
+        
+        if tenant_with_email:
+            # If this is a tenant admin being created for this tenant, allow it
+            # (This will be handled in the view that creates tenant admin users)
+            # For regular user creation, reject tenant emails
+            if not self.instance:  # Creating new user
+                # Check if this will be a tenant admin - we can't determine this here,
+                # so we'll allow it and let the view handle it, OR reject all tenant emails
+                # Actually, we should reject to be safe - tenant admins should be created through tenant creation
+                raise serializers.ValidationError(
+                    f"This email is already registered as a tenant contact email for '{tenant_with_email.company_name}'. "
+                    "Please use a different email for the user account."
+                )
+            elif hasattr(self.instance, 'tenant') and self.instance.tenant and self.instance.role == 'tenant_admin':
+                # Updating tenant admin: allow if it's for the same tenant
+                if self.instance.tenant == tenant_with_email:
+                    return value
+                # Different tenant: reject
+                raise serializers.ValidationError(
+                    f"This email is already registered as a tenant contact email for '{tenant_with_email.company_name}'. "
+                    "Tenant admin email must match the tenant contact email."
+                )
+            else:
+                # Regular user or different scenario: reject
+                raise serializers.ValidationError(
+                    f"This email is already registered as a tenant contact email for '{tenant_with_email.company_name}'. "
+                    "Please use a different email for the user account."
+                )
+        
+        return value
+    
     def validate(self, attrs):
         if attrs['password'] != attrs['password_confirm']:
             raise serializers.ValidationError({"password": "Passwords don't match."})

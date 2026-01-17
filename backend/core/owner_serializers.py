@@ -366,13 +366,57 @@ class TenantCreateUpdateSerializer(serializers.ModelSerializer):
         return value
     
     def validate_email(self, value):
-        """Ensure email is unique."""
+        """Ensure email is unique across tenants and users.
+        
+        Rules:
+        - Tenant email must be unique among all tenants
+        - When creating tenant, email must not exist as any user
+        - When updating tenant, allow if email unchanged OR if user with email is this tenant's admin
+        """
         if not value:
             raise serializers.ValidationError("Email is required.")
-        if self.instance and self.instance.email == value:
+        
+        # Normalize email (lowercase, strip whitespace)
+        value = value.lower().strip()
+        
+        # Check if this is an update and email hasn't changed
+        if self.instance and self.instance.email.lower() == value:
             return value
-        if Tenant.objects.filter(email=value).exists():
-            raise serializers.ValidationError("A tenant with this email already exists.")
+        
+        # Check if email already exists as a Tenant (excluding current instance if updating)
+        tenant_queryset = Tenant.objects.filter(email__iexact=value)
+        if self.instance:
+            tenant_queryset = tenant_queryset.exclude(pk=self.instance.pk)
+        if tenant_queryset.exists():
+            raise serializers.ValidationError(
+                "A tenant with this email already exists. Please use a different email."
+            )
+        
+        # Check if email is used by a User
+        from accounts.models import User
+        existing_user = User.objects.filter(email__iexact=value).first()
+        
+        if existing_user:
+            if self.instance:
+                # Updating tenant: allow only if the user is the tenant admin for THIS tenant
+                if (existing_user.tenant == self.instance and 
+                    existing_user.role == 'tenant_admin'):
+                    # This tenant's admin user shares the tenant email - allowed
+                    return value
+                else:
+                    # Email belongs to a different user or tenant - reject
+                    raise serializers.ValidationError(
+                        "This email is already registered as a user account. "
+                        "Please use a different email for the tenant."
+                    )
+            else:
+                # Creating new tenant: reject if email exists as any user
+                # (Tenant admin will be created with this email AFTER tenant creation)
+                raise serializers.ValidationError(
+                    "This email is already registered as a user account. "
+                    "Please use a different email for the tenant."
+                )
+        
         return value
     
     def validate(self, data):

@@ -131,8 +131,18 @@ class TenantSignupView(views.APIView):
         
         # Create admin user for the tenant
         password = data.get('password')
-        email = data.get('email')
+        email = data.get('email').lower().strip() if data.get('email') else None
         contact_person = data.get('contact_person', '')
+        
+        # Double-check email doesn't exist as a User (even though serializer should catch this)
+        # This is a safety check in case someone bypasses the serializer
+        if User.objects.filter(email__iexact=email).exists():
+            # Rollback tenant creation
+            tenant.delete()
+            return Response(
+                {'email': ['This email is already registered as a user account. Please use a different email.']},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
         # Extract first and last name from contact_person
         contact_parts = contact_person.split(' ', 1) if contact_person else ['', '']
@@ -148,20 +158,35 @@ class TenantSignupView(views.APIView):
             counter += 1
         
         # Create tenant admin user (email not verified initially for new signups)
-        admin_user = User.objects.create_user(
-            username=username,
-            email=email,
-            password=password,
-            first_name=first_name,
-            last_name=last_name,
-            phone=data.get('phone', ''),
-            role='tenant_admin',
-            tenant=tenant,
-            is_active=True,
-            is_staff=True,
-            is_email_verified=False,  # Require email verification for new signups
-            email_verified_at=None,
-        )
+        # Note: Using the same email as tenant is allowed (tenant admin uses tenant contact email)
+        try:
+            admin_user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password,
+                first_name=first_name,
+                last_name=last_name,
+                phone=data.get('phone', ''),
+                role='tenant_admin',
+                tenant=tenant,
+                is_active=True,
+                is_staff=True,
+                is_email_verified=False,  # Require email verification for new signups
+                email_verified_at=None,
+            )
+        except Exception as e:
+            # Rollback tenant creation if user creation fails
+            tenant.delete()
+            error_msg = str(e)
+            if 'email' in error_msg.lower() or 'unique' in error_msg.lower():
+                return Response(
+                    {'email': ['This email is already registered. Please use a different email.']},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            return Response(
+                {'error': f'Failed to create user account: {error_msg}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
         
         # Generate email verification token and send verification email
         try:

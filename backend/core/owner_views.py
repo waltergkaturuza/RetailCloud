@@ -245,9 +245,18 @@ class OwnerTenantViewSet(viewsets.ModelViewSet):
             admin_password = ''.join(secrets.choice(alphabet) for _ in range(password_length))
             
             # Create tenant admin user
-            # Use tenant email or generate username from tenant slug
-            admin_email = tenant.email
+            # Use tenant email - this is allowed as tenant admin shares tenant contact email
+            admin_email = tenant.email.lower().strip()
             admin_username = tenant.slug + '_admin'
+            
+            # Validate email doesn't already exist as a user (should have been caught by serializer, but double-check)
+            if User.objects.filter(email__iexact=admin_email).exists():
+                # Rollback tenant creation
+                tenant.delete()
+                return Response(
+                    {'email': ['This email is already registered as a user account. Please use a different email.']},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             
             # Ensure username is unique
             base_username = admin_username
@@ -261,6 +270,7 @@ class OwnerTenantViewSet(viewsets.ModelViewSet):
             first_name = contact_parts[0] if len(contact_parts) > 0 else 'Admin'
             last_name = contact_parts[1] if len(contact_parts) > 1 else tenant.company_name
             
+            # Create tenant admin user with tenant's email (allowed)
             admin_user = User.objects.create_user(
                 username=admin_username,
                 email=admin_email,
@@ -288,23 +298,24 @@ class OwnerTenantViewSet(viewsets.ModelViewSet):
                 request=request
             )
         except Exception as e:
-            # Log the error but don't fail tenant creation
+            # Log the error
             import logging
             logger = logging.getLogger(__name__)
-            logger.error(f"Failed to create admin user for tenant {tenant.id}: {str(e)}", exc_info=True)
+            error_msg = str(e)
+            logger.error(f"Failed to create admin user for tenant {tenant.id}: {error_msg}", exc_info=True)
             
-            log_audit(
-                request.user,
-                'tenant_create',
-                f"Created tenant: {tenant.company_name} (Admin user creation failed: {str(e)})",
-                tenant=tenant,
-                metadata={
-                    'tenant_id': tenant.id, 
-                    'tenant_name': tenant.company_name,
-                    'admin_user_creation_error': str(e)
-                },
-                request=request
-            )
+            # Check if it's an email uniqueness error
+            if 'email' in error_msg.lower() or 'unique' in error_msg.lower():
+                # Transaction will rollback automatically due to @transaction.atomic
+                # Return error response before rollback completes
+                return Response(
+                    {'email': ['This email is already registered as a user account. Failed to create tenant admin user. Please use a different email.']},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # For other errors, re-raise to trigger transaction rollback
+            # Tenant admin user creation is critical, so we should fail tenant creation if it fails
+            raise
         
         # Include admin credentials in response if user was created
         response_data = TenantDetailSerializer(tenant).data

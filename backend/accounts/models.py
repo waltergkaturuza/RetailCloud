@@ -9,6 +9,9 @@ from core.models import Tenant, Branch
 
 class User(AbstractUser):
     """Extended user model with tenant association."""
+    # Override email field to make it unique and required
+    email = models.EmailField(unique=True, verbose_name='email address')
+    
     tenant = models.ForeignKey(
         Tenant,
         on_delete=models.CASCADE,
@@ -54,6 +57,9 @@ class User(AbstractUser):
     class Meta:
         db_table = 'users'
         ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(fields=['email'], name='unique_user_email')
+        ]
     
     def __str__(self):
         return f"{self.email} ({self.get_role_display()})"
