@@ -140,7 +140,30 @@ class AuthViewSet(viewsets.ViewSet):
                 # Generate JWT tokens
                 try:
                     refresh = RefreshToken.for_user(authenticated_user)
-                    user_data = UserSerializer(authenticated_user).data
+                    # Serialize user data with error handling
+                    try:
+                        user_data = UserSerializer(authenticated_user).data
+                    except Exception as serialization_error:
+                        # Log serialization error but try to return basic user info
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.error(f"Failed to serialize user {authenticated_user.email}: {str(serialization_error)}", exc_info=True)
+                        # Return minimal user data if serialization fails
+                        user_data = {
+                            'id': authenticated_user.id,
+                            'username': authenticated_user.username,
+                            'email': authenticated_user.email,
+                            'first_name': authenticated_user.first_name or '',
+                            'last_name': authenticated_user.last_name or '',
+                            'role': authenticated_user.role,
+                            'role_display': authenticated_user.get_role_display(),
+                            'tenant': authenticated_user.tenant.id if authenticated_user.tenant else None,
+                            'tenant_name': authenticated_user.tenant.company_name if authenticated_user.tenant else None,
+                            'branch': authenticated_user.branch.id if authenticated_user.branch else None,
+                            'is_active': authenticated_user.is_active,
+                            'is_email_verified': authenticated_user.is_email_verified,
+                            'permissions': []
+                        }
                     
                     return Response({
                         'user': user_data,

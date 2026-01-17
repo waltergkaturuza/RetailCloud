@@ -9,7 +9,7 @@ from .models import User, UserPermission
 class UserSerializer(serializers.ModelSerializer):
     """User serializer."""
     role_display = serializers.CharField(source='get_role_display', read_only=True)
-    tenant_name = serializers.CharField(source='tenant.company_name', read_only=True)
+    tenant_name = serializers.SerializerMethodField()
     permissions = serializers.SerializerMethodField()
     
     class Meta:
@@ -22,11 +22,24 @@ class UserSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'created_at', 'is_email_verified']
     
+    def get_tenant_name(self, obj):
+        """Get tenant company name safely."""
+        if obj.tenant:
+            return obj.tenant.company_name
+        return None
+    
     def get_permissions(self, obj):
         """Get user's granular permissions."""
-        from .permission_serializers import UserPermissionSerializer
-        permissions = obj.permissions.all()
-        return UserPermissionSerializer(permissions, many=True).data
+        try:
+            from .permission_serializers import UserPermissionSerializer
+            permissions = obj.permissions.all()
+            return UserPermissionSerializer(permissions, many=True).data
+        except Exception as e:
+            # Log error but don't fail serialization
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to serialize permissions for user {obj.id}: {str(e)}")
+            return []
 
 
 class UserCreateSerializer(serializers.ModelSerializer):

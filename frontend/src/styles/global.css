@@ -335,9 +335,7 @@ code {
 @media (max-width: 767px) {
   body {
     font-size: 14px;
-  }
-
-  .card {
+  }  .card {
     padding: 16px;
     border-radius: 8px;
   }
@@ -460,4 +458,3 @@ code {
     display: none;
   }
 }
-
